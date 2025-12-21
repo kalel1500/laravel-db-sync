@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Thehouseofel\Dbsync\Domain\Sync;
 
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Thehouseofel\Dbsync\Domain\Strategies\AlwaysRecreateStrategy;
 use Thehouseofel\Dbsync\Domain\Strategies\CompareAndOptimizeStrategy;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncDatabase;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
+use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTableRun;
 
 class TableSyncCoordinator
 {
@@ -22,15 +25,53 @@ class TableSyncCoordinator
         DbsyncDatabase $database,
         DbsyncTable $table
     ): void {
-        // De momento, fijo:
-        $strategy = $this->alwaysRecreate;
 
-        // Más adelante:
-        // $strategy = $table->strategy === 'compare'
-        //     ? $this->compareAndOptimize
-        //     : $this->alwaysRecreate;
+        $run = DbsyncTableRun::create([
+            'connection_id' => $connection->id,
+            'database_id'   => $database->id,
+            'table_id'      => $table->id,
+            'status'        => 'running',
+            'started_at'    => now(),
+        ]);
 
-        $strategy->sync($connection, $database, $table);
+        $lock = Cache::lock("dbsync:table:{$table->id}", 600);
+
+        try {
+            if (! $lock->get()) {
+                throw new \RuntimeException('Table is already being synced.');
+            }
+
+            DB::connection($connection->target_connection)->transaction(function () use ($connection, $database, $table, $run) {
+
+                // De momento, fijo:
+                $strategy = $this->alwaysRecreate;
+
+                // Más adelante:
+                // $strategy = $table->strategy === 'compare'
+                //     ? $this->compareAndOptimize
+                //     : $this->alwaysRecreate;
+
+                $rows = $strategy->sync($connection, $database, $table);
+
+                $run->update([
+                    'status'        => 'success',
+                    'rows_copied'   => $rows,
+                    'finished_at'   => now(),
+                ]);
+            });
+
+        } catch (\Throwable $e) {
+            $run->update([
+                'status'        => 'failed',
+                'error_message' => $e->getMessage(),
+                'error_trace'   => $e->getTraceAsString(),
+                'finished_at'   => now(),
+            ]);
+
+            // IMPORTANT: swallow exception, do NOT rethrow
+        } finally {
+            optional($lock)->release();
+        }
     }
 }
 

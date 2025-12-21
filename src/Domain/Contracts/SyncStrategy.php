@@ -12,5 +12,5 @@ interface SyncStrategy
         DbsyncConnection $connection,
         DbsyncDatabase $database,
         DbsyncTable $table
-    ): void;
+    ): int;
 }

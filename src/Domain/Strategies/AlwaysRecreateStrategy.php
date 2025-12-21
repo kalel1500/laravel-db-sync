@@ -25,13 +25,13 @@ class AlwaysRecreateStrategy implements SyncStrategy
         DbsyncConnection $connection,
         DbsyncDatabase   $database,
         DbsyncTable      $table
-    ): void
+    ): int
     {
         Schema::connection($connection->target_connection)
             ->dropIfExists($table->target_table);
 
         $this->schemaBuilder->create($connection, $table);
 
-        $this->dataCopier->copy($connection, $database, $table);
+        return $this->dataCopier->copy($connection, $database, $table);
     }
 }

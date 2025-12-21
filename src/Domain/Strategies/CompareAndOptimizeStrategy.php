@@ -25,7 +25,7 @@ class CompareAndOptimizeStrategy implements SyncStrategy
         DbsyncConnection $connection,
         DbsyncDatabase   $database,
         DbsyncTable      $table,
-    ): void
+    ): int
     {
         // TODO:
         // 1. Read current target schema
@@ -36,5 +36,6 @@ class CompareAndOptimizeStrategy implements SyncStrategy
         //    - alter
         //    - drop + recreate
         // 5. Copy data
+        return 0;
     }
 }

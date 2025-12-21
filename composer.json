@@ -1,0 +1,44 @@
+{
+    "name": "kalel1500/laravel-db-sync",
+    "description": "A Laravel package for syncing database tables and data across multiple connections.",
+    "keywords": ["dbsync","laravel", "package", "db", "sync", "database", "loader"],
+    "authors": [
+        {
+            "name": "Adrian Canals Csefko",
+            "email": "a.canals14@gmail.com"
+        }
+    ],
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "ext-json": "*",
+        "php" : "^8.2",
+        "laravel/framework": "^11.0|^12.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5",
+        "orchestra/testbench": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Thehouseofel\\Dbsync\\": "src",
+            "Thehouseofel\\Dbsync\\Database\\Factories\\": "database/factories",
+            "Thehouseofel\\Dbsync\\Database\\Seeders\\": "database/seeders"
+        },
+        "files": [
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Thehouseofel\\Dbsync\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Thehouseofel\\Dbsync\\DbsyncServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

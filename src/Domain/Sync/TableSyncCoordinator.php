@@ -6,8 +6,7 @@ namespace Thehouseofel\Dbsync\Domain\Sync;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Thehouseofel\Dbsync\Domain\Strategies\AlwaysRecreateStrategy;
-use Thehouseofel\Dbsync\Domain\Strategies\CompareAndOptimizeStrategy;
+use Thehouseofel\Dbsync\Domain\Contracts\SyncStrategy;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncDatabase;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
@@ -16,8 +15,7 @@ use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTableRun;
 class TableSyncCoordinator
 {
     public function __construct(
-        protected AlwaysRecreateStrategy $alwaysRecreate,
-        protected CompareAndOptimizeStrategy $compareAndOptimize
+        protected SyncStrategy $strategy
     ) {}
 
     public function handle(
@@ -42,16 +40,7 @@ class TableSyncCoordinator
             }
 
             DB::connection($connection->target_connection)->transaction(function () use ($connection, $database, $table, $run) {
-
-                // De momento, fijo:
-                $strategy = $this->alwaysRecreate;
-
-                // Más adelante:
-                // $strategy = $table->strategy === 'compare'
-                //     ? $this->compareAndOptimize
-                //     : $this->alwaysRecreate;
-
-                $rows = $strategy->sync($connection, $database, $table);
+                $rows = $this->strategy->sync($connection, $database, $table);
 
                 $run->update([
                     'status'        => 'success',

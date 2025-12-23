@@ -6,7 +6,7 @@ namespace Thehouseofel\Dbsync\Infrastructure\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Thehouseofel\Dbsync\Domain\Sync\DatabaseSyncRunner;
+use Thehouseofel\Dbsync\Application\DatabaseSyncExecutor;
 
 class RunDatabaseSyncJob implements ShouldQueue
 {
@@ -15,7 +15,11 @@ class RunDatabaseSyncJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct()
+    public function __construct(
+        protected ?int $connectionId = null,
+        protected ?int $databaseId = null,
+        protected ?int $tableId = null,
+    )
     {
         //
     }
@@ -23,8 +27,12 @@ class RunDatabaseSyncJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(DatabaseSyncRunner $runner): void
+    public function handle(DatabaseSyncExecutor $executor): void
     {
-        $runner->run();
+        $executor->execute(
+            connectionId: $this->connectionId,
+            databaseId  : $this->databaseId,
+            tableId     : $this->tableId,
+        );
     }
 }

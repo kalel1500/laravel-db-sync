@@ -10,20 +10,7 @@ class DbsyncTable extends Model
 {
     protected $table = 'dbsync_tables';
 
-    protected $fillable = [
-        'source_table',
-        'target_table',
-        'min_records',
-        'active',
-        'source_query',
-        'drop_before_create',
-        'truncate_before_insert',
-        'batch_size',
-        'primary_key',
-        'unique_keys',
-        'indexes',
-        'database_id',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'primary_key' => 'array',

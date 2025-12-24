@@ -10,11 +10,7 @@ class DbsyncConnection extends Model
 {
     protected $table = 'dbsync_connections';
 
-    protected $fillable = [
-        'source_connection',
-        'target_connection',
-        'active',
-    ];
+    protected $guarded = [];
 
     public function databases()
     {

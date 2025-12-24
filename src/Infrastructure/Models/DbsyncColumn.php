@@ -10,11 +10,7 @@ class DbsyncColumn extends Model
 {
     protected $table = 'dbsync_columns';
 
-    protected $fillable = [
-        'method',
-        'parameters',
-        'modifiers',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'parameters' => 'array',

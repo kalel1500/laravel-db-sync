@@ -24,7 +24,8 @@ class TableDataCopier
             ? collect($source->select($table->source_query))
             : $source->table($table->source_table)->get();
 
-        if ($rows->count() < $table->min_records) {
+        $numRows = $rows->count();
+        if (($numRows < 1) || $numRows < ($table->min_records ?? 1)) {
             return 0;
         }
 

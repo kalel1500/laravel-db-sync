@@ -11,16 +11,13 @@ class DbsyncColumn extends Model
     protected $table = 'dbsync_columns';
 
     protected $fillable = [
-        'name',
         'method',
         'parameters',
         'modifiers',
-        'is_primary',
     ];
 
     protected $casts = [
         'parameters' => 'array',
-        'modifiers' => 'array',
-        'is_primary' => 'boolean',
+        'modifiers'  => 'array',
     ];
 }

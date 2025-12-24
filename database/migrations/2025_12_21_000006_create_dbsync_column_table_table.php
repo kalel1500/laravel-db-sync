@@ -16,6 +16,9 @@ return new class extends Migration
             $table->foreignId('table_id')->constrained('dbsync_tables')->cascadeOnDelete();
             $table->foreignId('column_id')->constrained('dbsync_columns')->cascadeOnDelete();
             $table->unsignedInteger('order')->default(0);
+            $table->timestamps();
+            $table->unique(['table_id', 'column_id']);
+            $table->index(['table_id', 'order']);
         });
     }
 

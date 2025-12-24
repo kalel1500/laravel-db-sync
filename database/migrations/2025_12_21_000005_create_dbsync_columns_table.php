@@ -13,11 +13,9 @@ return new class extends Migration
     {
         Schema::create('dbsync_columns', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('method'); // Blueprint method: string, integer, decimal, etc.
-            $table->json('parameters')->nullable(); // Parameters: [20], [8,2], etc.
-            $table->json('modifiers')->nullable(); // Modifiers: nullable, unsigned, index, unique, etc.
-            $table->boolean('is_primary')->default(false);
+            $table->string('method'); // Blueprint method: string, integer, decimal, foreignId, etc.
+            $table->json('parameters'); // Parameters: ["name", 100], ["user_id"], etc.
+            $table->json('modifiers')->nullable(); // Modifiers: ["nullable", "unique"], [{"method": "...", "parameters": [".."]}], etc.
             $table->timestamps();
         });
     }

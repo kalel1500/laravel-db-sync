@@ -21,8 +21,13 @@ return new class extends Migration
             $table->boolean('drop_before_create')->default(true);
             $table->boolean('truncate_before_insert')->default(true);
             $table->unsignedInteger('batch_size')->default(1000);
+            $table->json('primary_key')->nullable();
+            $table->json('unique_keys')->nullable();
+            $table->json('indexes')->nullable();
             $table->foreignId('database_id')->constrained('dbsync_databases')->cascadeOnDelete();
             $table->timestamps();
+            $table->unique(['database_id', 'destiny']);
+            $table->index(['active']);
         });
     }
 

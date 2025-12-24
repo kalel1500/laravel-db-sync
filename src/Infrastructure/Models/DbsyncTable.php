@@ -19,7 +19,16 @@ class DbsyncTable extends Model
         'drop_before_create',
         'truncate_before_insert',
         'batch_size',
+        'primary_key',
+        'unique_keys',
+        'indexes',
         'database_id',
+    ];
+
+    protected $casts = [
+        'primary_key' => 'array',
+        'unique_keys' => 'array',
+        'indexes'     => 'array',
     ];
 
     public function database()
@@ -29,11 +38,8 @@ class DbsyncTable extends Model
 
     public function columns()
     {
-        return $this->belongsToMany(
-            DbsyncColumn::class,
-            'dbsync_column_table',
-            'table_id',
-            'column_id'
-        )->withPivot('order')->orderBy('pivot_order');
+        return $this->belongsToMany(DbsyncColumn::class, 'dbsync_column_table', 'table_id', 'column_id')
+            ->withPivot('order')
+            ->orderBy('dbsync_column_table.order');
     }
 }

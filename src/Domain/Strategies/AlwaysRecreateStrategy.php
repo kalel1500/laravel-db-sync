@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Thehouseofel\Dbsync\Domain\Strategies;
 
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Thehouseofel\Dbsync\Domain\Contracts\SyncStrategy;
 use Thehouseofel\Dbsync\Domain\Data\TableDataCopier;
@@ -30,7 +31,10 @@ class AlwaysRecreateStrategy implements SyncStrategy
         Schema::connection($connection->target_connection)
             ->dropIfExists($table->target_table);
 
-        $this->schemaBuilder->create($connection, $table);
+        Schema::connection($connection->target_connection)
+            ->create($table->target_table, function (Blueprint $blueprint) use ($table) {
+                $this->schemaBuilder->create($blueprint, $table);
+            });
 
         return $this->dataCopier->copy($connection, $database, $table);
     }

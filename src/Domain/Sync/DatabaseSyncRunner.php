@@ -23,15 +23,7 @@ class DatabaseSyncRunner
             $database   = $table->database;
             $connection = $database->connection;
 
-            if (! $connection->active) {
-                continue;
-            }
-
-            if (! $database->active) {
-                continue;
-            }
-
-            if (! $table->active) {
+            if (! $connection->active || ! $database->active || ! $table->active) {
                 continue;
             }
 

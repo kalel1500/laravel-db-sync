@@ -13,7 +13,6 @@ class EloquentDbsyncTableRepository implements DbsyncTableRepository
     {
         return DbsyncTable::query()
             ->whereKey($tableId)
-            ->where('active', true)
             ->with('database.connection')
             ->get();
     }
@@ -22,7 +21,6 @@ class EloquentDbsyncTableRepository implements DbsyncTableRepository
     {
         return DbsyncTable::query()
             ->where('database_id', $databaseId)
-            ->where('active', true)
             ->with('database.connection')
             ->get();
     }
@@ -33,7 +31,6 @@ class EloquentDbsyncTableRepository implements DbsyncTableRepository
             ->whereHas('database', function ($q) use ($connectionId) {
                 $q->where('connection_id', $connectionId);
             })
-            ->where('active', true)
             ->with('database.connection')
             ->get();
     }
@@ -41,7 +38,6 @@ class EloquentDbsyncTableRepository implements DbsyncTableRepository
     public function getForAll()
     {
         return DbsyncTable::query()
-            ->where('active', true)
             ->with('database.connection')
             ->get();
     }

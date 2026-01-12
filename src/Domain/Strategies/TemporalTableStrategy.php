@@ -12,7 +12,7 @@ use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncDatabase;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
-class CompareAndOptimizeStrategy implements SyncStrategy
+class TemporalTableStrategy implements SyncStrategy
 {
     public function __construct(
         protected TableSchemaBuilder $schemaBuilder,
@@ -27,15 +27,7 @@ class CompareAndOptimizeStrategy implements SyncStrategy
         DbsyncTable      $table,
     ): int
     {
-        // TODO:
-        // 1. Read current target schema
-        // 2. Normalize expected schema (from dbsync_columns)
-        // 3. Compare both
-        // 4. Decide strategy:
-        //    - truncate
-        //    - alter
-        //    - drop + recreate
-        // 5. Copy data
+        // TODO: Implement temporal table synchronization logic here
         return 0;
     }
 }

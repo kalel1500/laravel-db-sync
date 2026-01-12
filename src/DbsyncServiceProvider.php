@@ -9,7 +9,7 @@ use Illuminate\Support\ServiceProvider;
 use Thehouseofel\Dbsync\Domain\Contracts\DbsyncTableRepository;
 use Thehouseofel\Dbsync\Domain\Contracts\SyncStrategy;
 use Thehouseofel\Dbsync\Domain\Strategies\AlwaysRecreateStrategy;
-use Thehouseofel\Dbsync\Domain\Strategies\CompareAndOptimizeStrategy;
+use Thehouseofel\Dbsync\Domain\Strategies\TemporalTableStrategy;
 use Thehouseofel\Dbsync\Infrastructure\Console\Commands\DbsyncRunCommand;
 use Thehouseofel\Dbsync\Infrastructure\Repositories\Eloquent\EloquentDbsyncTableRepository;
 

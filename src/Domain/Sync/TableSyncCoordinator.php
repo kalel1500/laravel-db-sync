@@ -38,15 +38,13 @@ class TableSyncCoordinator
                 throw new \RuntimeException('Table is already being synced.');
             }
 
-            DB::connection($connection->target_connection)->transaction(function () use ($connection, $database, $table, $run) {
-                $rows = $this->synchronizer->sync($connection, $database, $table);
+            $rows = $this->synchronizer->sync($connection, $database, $table);
 
-                $run->update([
-                    'status'        => 'success',
-                    'rows_copied'   => $rows,
-                    'finished_at'   => now(),
-                ]);
-            });
+            $run->update([
+                'status'        => 'success',
+                'rows_copied'   => $rows,
+                'finished_at'   => now(),
+            ]);
 
         } catch (\Throwable $e) {
             $run->update([

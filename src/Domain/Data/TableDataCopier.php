@@ -14,7 +14,17 @@ class TableDataCopier
     public function copy(
         DbsyncConnection $connection,
         DbsyncDatabase   $database,
-        DbsyncTable      $table
+        DbsyncTable      $table,
+    ): int
+    {
+        return $this->copyToTarget($connection, $database, $table, $table->target_table);
+    }
+
+    public function copyToTarget(
+        DbsyncConnection $connection,
+        DbsyncDatabase   $database,
+        DbsyncTable      $table,
+        string           $targetTable,
     ): int
     {
         $source = DB::connection($connection->source_connection);
@@ -31,8 +41,8 @@ class TableDataCopier
 
         return $rows
             ->chunk($table->batch_size)
-            ->reduce(function ($total, $chunk) use ($target, $table) {
-                $target->table($table->target_table)
+            ->reduce(function ($total, $chunk) use ($target, $targetTable) {
+                $target->table($targetTable)
                     ->insert(
                         $chunk->map(fn($row) => (array)$row)->all()
                     );

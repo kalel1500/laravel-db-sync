@@ -18,7 +18,7 @@ return new class extends Migration
             $table->unsignedInteger('min_records')->nullable();
             $table->boolean('active')->default(true);
             $table->longText('source_query')->nullable();
-            $table->boolean('use_temporal_table')->default(false);
+            $table->boolean('use_temporal_table')->default(true);
             $table->unsignedInteger('batch_size')->default(1000);
             $table->json('primary_key')->nullable();
             $table->json('unique_keys')->nullable();

@@ -26,7 +26,7 @@ return new class extends Migration
             $table->json('indexes')->nullable();
             $table->foreignId('database_id')->constrained('dbsync_databases')->cascadeOnDelete();
             $table->timestamps();
-            $table->unique(['database_id', 'destiny']);
+            $table->unique(['database_id', 'target_table']);
             $table->index(['active']);
         });
     }

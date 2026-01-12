@@ -13,7 +13,7 @@ use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncDatabase;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
-class AlwaysRecreateStrategy implements SyncStrategy
+class DropStrategy implements SyncStrategy
 {
     public function __construct(
         protected TableSchemaBuilder $schemaBuilder,

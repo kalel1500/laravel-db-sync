@@ -8,7 +8,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 use Thehouseofel\Dbsync\Domain\Contracts\DbsyncTableRepository;
 use Thehouseofel\Dbsync\Domain\Contracts\SyncStrategy;
-use Thehouseofel\Dbsync\Domain\Strategies\AlwaysRecreateStrategy;
+use Thehouseofel\Dbsync\Domain\Strategies\DropStrategy;
 use Thehouseofel\Dbsync\Domain\Strategies\TemporalTableStrategy;
 use Thehouseofel\Dbsync\Infrastructure\Console\Commands\DbsyncRunCommand;
 use Thehouseofel\Dbsync\Infrastructure\Repositories\Eloquent\EloquentDbsyncTableRepository;
@@ -35,8 +35,8 @@ class DbsyncServiceProvider extends ServiceProvider
 
         $this->app->singleton(SyncStrategy::class, function (Application $app) {
 
-            // For now, the AlwaysRecreateStrategy is always used.
-            $class = AlwaysRecreateStrategy::class;
+            // For now, the DropStrategy is always used.
+            $class = DropStrategy::class;
 
             // TODO: The logic of the CompareAndOptimizeStrategy still needs to be written.
             /*$class = match (config('dbsync.strategy')) {

@@ -13,32 +13,22 @@ class EloquentDbsyncTableRepository implements DbsyncTableRepository
     {
         return DbsyncTable::query()
             ->whereKey($tableId)
-            ->with('database.connection')
-            ->get();
-    }
-
-    public function getForDatabase(int $databaseId)
-    {
-        return DbsyncTable::query()
-            ->where('database_id', $databaseId)
-            ->with('database.connection')
+            ->with('connection')
             ->get();
     }
 
     public function getForConnection(int $connectionId)
     {
         return DbsyncTable::query()
-            ->whereHas('database', function ($q) use ($connectionId) {
-                $q->where('connection_id', $connectionId);
-            })
-            ->with('database.connection')
+            ->where('connection_id', $connectionId)
+            ->with('connection')
             ->get();
     }
 
     public function getForAll()
     {
         return DbsyncTable::query()
-            ->with('database.connection')
+            ->with('connection')
             ->get();
     }
 }

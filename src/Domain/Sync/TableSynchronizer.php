@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Schema;
 use Thehouseofel\Dbsync\Domain\Data\TableDataCopier;
 use Thehouseofel\Dbsync\Domain\Shema\TableSchemaBuilder;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
-use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncDatabase;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 use Throwable;
 
@@ -28,18 +27,16 @@ class TableSynchronizer
      */
     public function sync(
         DbsyncConnection $connection,
-        DbsyncDatabase   $database,
         DbsyncTable      $table
     ): int
     {
         return $table->use_temporal_table
-            ? $this->syncUsingTemporalTable($connection, $database, $table)
-            : $this->syncUsingDrop($connection, $database, $table);
+            ? $this->syncUsingTemporalTable($connection, $table)
+            : $this->syncUsingDrop($connection, $table);
     }
 
     protected function syncUsingDrop(
         DbsyncConnection $connection,
-        DbsyncDatabase   $database,
         DbsyncTable      $table
     ): int
     {
@@ -51,7 +48,7 @@ class TableSynchronizer
                 $this->schemaBuilder->create($blueprint, $table);
             });
 
-        return $this->dataCopier->copy($connection, $database, $table);
+        return $this->dataCopier->copy($connection, $table);
     }
 
     /**
@@ -59,7 +56,6 @@ class TableSynchronizer
      */
     protected function syncUsingTemporalTable(
         DbsyncConnection $connection,
-        DbsyncDatabase   $database,
         DbsyncTable      $table
     ): int
     {
@@ -78,7 +74,6 @@ class TableSynchronizer
         // Copiar datos a la temporal
         $rows = $this->dataCopier->copyToTarget(
             $connection,
-            $database,
             $table,
             $tempTable
         );

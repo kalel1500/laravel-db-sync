@@ -23,9 +23,9 @@ return new class extends Migration
             $table->json('primary_key')->nullable();
             $table->json('unique_keys')->nullable();
             $table->json('indexes')->nullable();
-            $table->foreignId('database_id')->constrained('dbsync_databases')->cascadeOnDelete();
+            $table->foreignId('connection_id')->constrained('dbsync_connections')->cascadeOnDelete();
             $table->timestamps();
-            $table->unique(['database_id', 'target_table']);
+            $table->unique(['connection_id', 'target_table']);
             $table->index(['active']);
         });
     }

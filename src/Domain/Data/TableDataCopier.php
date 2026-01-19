@@ -6,23 +6,20 @@ namespace Thehouseofel\Dbsync\Domain\Data;
 
 use Illuminate\Support\Facades\DB;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
-use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncDatabase;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
 class TableDataCopier
 {
     public function copy(
         DbsyncConnection $connection,
-        DbsyncDatabase   $database,
         DbsyncTable      $table,
     ): int
     {
-        return $this->copyToTarget($connection, $database, $table, $table->target_table);
+        return $this->copyToTarget($connection, $table, $table->target_table);
     }
 
     public function copyToTarget(
         DbsyncConnection $connection,
-        DbsyncDatabase   $database,
         DbsyncTable      $table,
         string           $targetTable,
     ): int

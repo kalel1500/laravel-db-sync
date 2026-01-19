@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('dbsync_table_runs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('connection_id')->constrained('dbsync_connections')->cascadeOnDelete();
-            $table->foreignId('database_id')->constrained('dbsync_databases')->cascadeOnDelete();
             $table->foreignId('table_id')->constrained('dbsync_tables')->cascadeOnDelete();
             $table->string('status', 20)->comment('pending | running | success | failed');
             $table->timestamp('started_at')->nullable();

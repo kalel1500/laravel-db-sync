@@ -17,7 +17,6 @@ class RunDatabaseSyncJob implements ShouldQueue
      */
     public function __construct(
         protected ?int $connectionId = null,
-        protected ?int $databaseId = null,
         protected ?int $tableId = null,
     )
     {
@@ -31,7 +30,6 @@ class RunDatabaseSyncJob implements ShouldQueue
     {
         $executor->execute(
             connectionId: $this->connectionId,
-            databaseId  : $this->databaseId,
             tableId     : $this->tableId,
         );
     }

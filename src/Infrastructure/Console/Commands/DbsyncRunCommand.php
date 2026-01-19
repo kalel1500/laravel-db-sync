@@ -30,7 +30,6 @@ class DbsyncRunCommand extends Command
     {
         dispatch_sync(new RunDatabaseSyncJob(
             connectionId: $this->option('connection'),
-            databaseId  : $this->option('database'),
             tableId     : $this->option('table')
         ));
     }

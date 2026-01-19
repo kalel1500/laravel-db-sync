@@ -18,9 +18,9 @@ class DbsyncTable extends Model
         'indexes'     => 'array',
     ];
 
-    public function database()
+    public function connection()
     {
-        return $this->belongsTo(DbsyncDatabase::class, 'database_id');
+        return $this->belongsTo(DbsyncConnection::class, 'connection_id');
     }
 
     public function columns()

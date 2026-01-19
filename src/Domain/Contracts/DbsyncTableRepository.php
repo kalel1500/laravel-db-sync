@@ -6,8 +6,6 @@ interface DbsyncTableRepository
 {
     public function getForTable(int $tableId);
 
-    public function getForDatabase(int $databaseId);
-
     public function getForConnection(int $connectionId);
 
     public function getForAll();

@@ -20,16 +20,14 @@ class DatabaseSyncRunner
     public function run(iterable $tables): void
     {
         foreach ($tables as $table) {
-            $database   = $table->database;
-            $connection = $database->connection;
+            $connection = $table->connection;
 
-            if (! $connection->active || ! $database->active || ! $table->active) {
+            if (! $connection->active || ! $table->active) {
                 continue;
             }
 
             $this->tableCoordinator->handle(
                 $connection,
-                $database,
                 $table
             );
         }

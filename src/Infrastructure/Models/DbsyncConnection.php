@@ -12,8 +12,8 @@ class DbsyncConnection extends Model
 
     protected $guarded = [];
 
-    public function databases()
+    public function tables()
     {
-        return $this->hasMany(DbsyncDatabase::class, 'connection_id');
+        return $this->hasMany(DbsyncTable::class, 'connection_id');
     }
 }

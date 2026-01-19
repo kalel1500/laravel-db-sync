@@ -18,13 +18,11 @@ class DatabaseSyncExecutor
 
     public function execute(
         ?int $connectionId = null,
-        ?int $databaseId = null,
         ?int $tableId = null,
     ): void
     {
         $tables = match (true) {
             $tableId !== null      => $this->repositoryTable->getForTable($tableId),
-            $databaseId !== null   => $this->repositoryTable->getForDatabase($databaseId),
             $connectionId !== null => $this->repositoryTable->getForConnection($connectionId),
             default                => $this->repositoryTable->getForAll(),
         };

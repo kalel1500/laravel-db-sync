@@ -14,7 +14,9 @@ class DbsyncRunCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'dbsync:run';
+    protected $signature = 'dbsync:run
+                            {--connection= : The ID of the connection to sync}
+                            {--table= : The ID of the table to sync}';
 
     /**
      * The console command description.

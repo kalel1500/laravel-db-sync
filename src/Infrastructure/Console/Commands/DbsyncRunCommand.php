@@ -23,7 +23,7 @@ class DbsyncRunCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Run database synchronization. Optionally specify connection or table ID to limit the scope.';
 
     /**
      * Execute the console command.

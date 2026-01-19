@@ -13,7 +13,7 @@ class EloquentDbsyncTableRepository implements DbsyncTableRepository
     {
         return DbsyncTable::query()
             ->whereKey($tableId)
-            ->with('connection')
+            ->with(['connection', 'columns'])
             ->get();
     }
 
@@ -21,14 +21,14 @@ class EloquentDbsyncTableRepository implements DbsyncTableRepository
     {
         return DbsyncTable::query()
             ->where('connection_id', $connectionId)
-            ->with('connection')
+            ->with(['connection', 'columns'])
             ->get();
     }
 
     public function getForAll()
     {
         return DbsyncTable::query()
-            ->with('connection')
+            ->with(['connection', 'columns'])
             ->get();
     }
 }

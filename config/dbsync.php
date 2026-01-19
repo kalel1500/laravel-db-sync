@@ -2,6 +2,6 @@
 
 return [
 
-    'run_migrations' => env('DBSYNC_RUN_MIGRATIONS', true),
+    'run_migrations' => env('DBSYNC_RUN_MIGRATIONS', false),
 
 ];

@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('source_connection');
             $table->string('target_connection');
             $table->boolean('active')->default(true);
-            $table->timestamps();
         });
     }
 

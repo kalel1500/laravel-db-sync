@@ -24,7 +24,6 @@ return new class extends Migration
             $table->json('unique_keys')->nullable();
             $table->json('indexes')->nullable();
             $table->foreignId('connection_id')->constrained('dbsync_connections')->cascadeOnDelete();
-            $table->timestamps();
             $table->unique(['connection_id', 'target_table']);
             $table->index(['active']);
         });

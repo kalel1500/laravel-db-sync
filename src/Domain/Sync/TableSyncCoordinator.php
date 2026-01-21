@@ -6,6 +6,7 @@ namespace Thehouseofel\Dbsync\Domain\Sync;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTableRun;
@@ -44,9 +45,16 @@ class TableSyncCoordinator
             ]);
 
         } catch (\Throwable $e) {
+
+            $message = Str::limit(
+                $e->getMessage(),
+                10000,
+                "\n\n[Truncated: message exceeded 10000 characters]"
+            );
+
             $run->update([
                 'status'        => 'failed',
-                'error_message' => $e->getMessage(),
+                'error_message' => $message,
                 'error_trace'   => $e->getTraceAsString(),
                 'finished_at'   => now(),
             ]);

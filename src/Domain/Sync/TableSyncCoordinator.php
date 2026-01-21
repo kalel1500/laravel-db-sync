@@ -48,14 +48,14 @@ class TableSyncCoordinator
 
             $message = Str::limit(
                 $e->getMessage(),
-                10000,
-                "\n\n[Truncated: message exceeded 10000 characters]"
+                10_000,
+                "\n\n[Truncated: message exceeded 10_000 characters]"
             );
 
             $trace = Str::limit(
                 $e->getTraceAsString(),
-                100000,
-                "\n\n[Truncated: trace exceeded 100000 characters]"
+                100_000,
+                "\n\n[Truncated: trace exceeded 100_000 characters]"
             );
 
             $run->update([

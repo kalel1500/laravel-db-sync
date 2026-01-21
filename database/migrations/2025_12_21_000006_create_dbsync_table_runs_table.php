@@ -19,7 +19,7 @@ return new class extends Migration
             $table->timestamp('started_at')->nullable();
             $table->timestamp('finished_at')->nullable();
             $table->unsignedBigInteger('rows_copied')->nullable();
-            $table->string('error_message')->nullable();
+            $table->longText('error_message')->nullable();
             $table->longText('error_trace')->nullable();
             $table->timestamps();
 

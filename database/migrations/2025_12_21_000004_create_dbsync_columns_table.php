@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('method'); // Blueprint method: string, integer, decimal, foreignId, etc.
             $table->json('parameters'); // Parameters: ["name", 100], ["user_id"], etc.
             $table->json('modifiers')->nullable(); // Modifiers: ["nullable", "unique"], [{"method": "...", "parameters": [".."]}], etc.
+            $table->string('case_transform')->nullable(); // upper | lower
         });
     }
 

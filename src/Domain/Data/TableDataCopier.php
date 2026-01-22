@@ -43,11 +43,30 @@ class TableDataCopier
             return 0;
         }
 
+        $caseTransforms = $this->resolveCaseTransforms($table);
+
         return $rows
             ->chunk($table->batch_size)
-            ->reduce(function (int $total, $chunk) use ($target, $targetTable) {
+            ->reduce(function (int $total, $chunk) use ($target, $targetTable, $caseTransforms) {
                 $target->table($targetTable)->insert(
-                    $chunk->map(fn($row) => (array)$row)->all()
+                    $chunk->map(function ($row) use ($caseTransforms) {
+                        $data = (array)$row;
+
+                        foreach ($caseTransforms as $column => $transform) {
+                            if (
+                                array_key_exists($column, $data) &&
+                                is_string($data[$column])
+                            ) {
+                                $data[$column] = match ($transform) {
+                                    'upper' => mb_strtoupper($data[$column]),
+                                    'lower' => mb_strtolower($data[$column]),
+                                    default => $data[$column],
+                                };
+                            }
+                        }
+
+                        return $data;
+                    })->all()
                 );
 
                 return $total + $chunk->count();
@@ -93,5 +112,36 @@ class TableDataCopier
         }
 
         return array_values(array_unique($columns));
+    }
+
+    /**
+     * Resolve case transformation rules per column.
+     *
+     * Returns: ['column_name' => 'upper|lower']
+     */
+    protected function resolveCaseTransforms(DbsyncTable $table): array
+    {
+        $transforms = [];
+
+        foreach ($table->columns as $column) {
+            if (empty($column->case_transform)) {
+                continue;
+            }
+
+            $method     = $column->method;
+            $parameters = $column->parameters ?? [];
+
+            $name = match ($method) {
+                'id'                                         => 'id',
+                'timestamps', 'softDeletes', 'rememberToken' => null,
+                default                                      => $parameters[0] ?? null,
+            };
+
+            if ($name) {
+                $transforms[$name] = $column->case_transform;
+            }
+        }
+
+        return $transforms;
     }
 }

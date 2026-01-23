@@ -71,12 +71,20 @@ class TableSynchronizer
                 $this->schemaBuilder->create($blueprint, $table);
             });
 
-        // Copiar datos a la temporal
-        $rows = $this->dataCopier->copyToTarget(
-            $connection,
-            $table,
-            $tempTable
-        );
+        try {
+            // Copiar datos a la temporal
+            $rows = $this->dataCopier->copyToTarget(
+                $connection,
+                $table,
+                $tempTable
+            );
+        } catch (Throwable $e) {
+            // Limpieza de la tabla temporal en caso de error
+            Schema::connection($connection->target_connection)
+                ->dropIfExists($tempTable);
+
+            throw $e;
+        }
 
         /**
          * Swap atómico

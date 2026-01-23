@@ -86,16 +86,9 @@ class TableSynchronizer
             throw $e;
         }
 
-        /**
-         * Swap atómico
-         *
-         * IMPORTANTE: La transacción NO deshace el drop/rename; pero agrupa operaciones críticas, documenta atomicidad en motores que lo soportan, reduce estados intermedios y limita el scope del riesgo
-         */
-        DB::connection($connection->target_connection)
-            ->transaction(function () use ($table, $tempTable) {
-                Schema::dropIfExists($table->target_table);
-                Schema::rename($tempTable, $table->target_table);
-            });
+        // Swap final (no transaccional por limitaciones DDL cross-engine)
+        Schema::connection($connection->target_connection)->dropIfExists($table->target_table);
+        Schema::connection($connection->target_connection)->rename($tempTable, $table->target_table);
 
         return $rows;
     }

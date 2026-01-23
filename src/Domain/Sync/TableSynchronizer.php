@@ -59,14 +59,14 @@ class TableSynchronizer
         DbsyncTable      $table
     ): int
     {
-        $tempTable = $this->temporaryTableName($table->target_table);
+        $tempTable   = $this->temporaryTableName($table->target_table);
+        $targetShema = Schema::connection($connection->target_connection);
 
         // Limpieza por si quedó algo colgado
-        Schema::connection($connection->target_connection)
-            ->dropIfExists($tempTable);
+        $targetShema->dropIfExists($tempTable);
 
         // Crear tabla temporal
-        Schema::connection($connection->target_connection)
+        $targetShema
             ->create($tempTable, function (Blueprint $blueprint) use ($table) {
                 $this->schemaBuilder->create($blueprint, $table);
             });
@@ -80,15 +80,14 @@ class TableSynchronizer
             );
         } catch (Throwable $e) {
             // Limpieza de la tabla temporal en caso de error
-            Schema::connection($connection->target_connection)
-                ->dropIfExists($tempTable);
+            $targetShema->dropIfExists($tempTable);
 
             throw $e;
         }
 
         // Swap final (no transaccional por limitaciones DDL cross-engine)
-        Schema::connection($connection->target_connection)->dropIfExists($table->target_table);
-        Schema::connection($connection->target_connection)->rename($tempTable, $table->target_table);
+        $targetShema->dropIfExists($table->target_table);
+        $targetShema->rename($tempTable, $table->target_table);
 
         return $rows;
     }

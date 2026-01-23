@@ -1,13 +1,23 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.2-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.3-beta.0...master)
+
+## [v0.1.3-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.2-beta.0...v0.1.3-beta.0) - 2026-01-23
+
+### Changed
+
+* Manejar excepciones al copiar datos en `TableSynchronizer` y limpiar tabla temporal en caso de error.
+
+### Fixed
+
+* (fix) Eliminar transacción en el swap de la tabla temporal en `TableSyncCoordinator` ya que no es soportada por DDL en todos los motores.
 
 ## [v0.1.2-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.1-beta.0...v0.1.2-beta.0) - 2026-01-23
 
 ### Changed
 
-* Adaptar ` TableDataCopier`  para transformar los registros a mayúsculas o minúsculas según el valor del campo `case_transform`.
-* Añadir la columna `case_transform`  en la tabla ` dbsync_columns`.
+* Adaptar `TableDataCopier`  para transformar los registros a mayúsculas o minúsculas según el valor del campo `case_transform`.
+* Añadir la columna `case_transform`  en la tabla `dbsync_columns`.
 
 ## [v0.1.1-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.0-beta.0...v0.1.1-beta.0) - 2026-01-22
 

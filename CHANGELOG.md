@@ -1,6 +1,12 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.3-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.3-beta.1...master)
+
+## [v0.1.3-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.3-beta.0...v0.1.3-beta.1) - 2026-01-29
+
+### Fixed
+
+* (fix) Convertir las opciones del comando `DbsyncRunCommand` a `int` si no son `null` ya que el job `RunDatabaseSyncJob` solo acepta parámetros de tipo `int|null`.
 
 ## [v0.1.3-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.2-beta.0...v0.1.3-beta.0) - 2026-01-23
 

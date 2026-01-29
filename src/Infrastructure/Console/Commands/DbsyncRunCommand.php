@@ -30,9 +30,12 @@ class DbsyncRunCommand extends Command
      */
     public function handle(): void
     {
+        $connectionId = $this->option('connection');
+        $tableId      = $this->option('table');
+
         dispatch_sync(new RunDatabaseSyncJob(
-            connectionId: $this->option('connection'),
-            tableId     : $this->option('table')
+            connectionId: is_null($connectionId) ? null : (int)$connectionId,
+            tableId     : is_null($tableId) ? null : (int)$tableId
         ));
     }
 }

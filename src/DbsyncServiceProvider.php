@@ -19,9 +19,7 @@ class DbsyncServiceProvider extends ServiceProvider
         }
 
         // Configuración - Mergear la configuración del paquete con la configuración de la aplicación, solo hará falta publicar si queremos sobreescribir alguna configuración.
-        if (! $this->app->configurationIsCached()) {
-            $this->mergeConfigFrom(DBSYNC_PATH . '/config/dbsync.php', 'dbsync');
-        }
+        $this->mergeConfigFrom(DBSYNC_PATH . '/config/dbsync.php', 'dbsync');
 
         $this->registerSingletons();
     }

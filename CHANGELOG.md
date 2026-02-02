@@ -1,6 +1,16 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.3-beta.1...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.2.0-beta.0...master)
+
+## [v0.2.0-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.3-beta.1...v0.2.0-beta.0) - 2026-02-02
+
+### Changed
+
+* (breaking) Añadir la columna code a la tabla `dbsync_columns` para poder buscar fácilmente las columnas. De esta forma los inserts se pueden hacer con ids dinámicos buscando la columna por el campo `code`.
+
+### Fixed
+
+* (fix) Eliminar la condición `!$this->app->configurationIsCached()` al cargar la configuración en el `DbsyncServiceProvider`, ya que Laravel lo maneja mejor automáticamente.
 
 ## [v0.1.3-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.1.3-beta.0...v0.1.3-beta.1) - 2026-01-29
 

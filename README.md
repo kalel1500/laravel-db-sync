@@ -90,12 +90,13 @@ In `config/database.php`:
 
 Example columns for `users` table:
 
-| id | table_id | method  | parameters      | modifiers                                       |
-|----|----------|---------|-----------------|-------------------------------------------------|
-| 1  | 1        | id      | null            | null                                            |
-| 2  | 1        | string  | `["name"]`      | `["nullable"]`                                  |
-| 2  | 1        | string  | `["email", 50]` | `["nullable", "unique"]`                        |
-| 2  | 1        | boolean | `["is_active"]` | `[{"method": "default", "parameters": [true]}]` |
+| id | table_id | method    | parameters      | modifiers                                                   |
+|----|----------|-----------|-----------------|-------------------------------------------------------------|
+| 1  | 1        | id        | null            | null                                                        |
+| 2  | 1        | string    | `["name"]`      | `["nullable"]`                                              |
+| 2  | 1        | string    | `["email", 50]` | `["nullable", "unique"]`                                    |
+| 2  | 1        | boolean   | `["is_active"]` | `[{"method": "default", "parameters": [true]}]`             |
+| 2  | 1        | foreignId | `["type_id"]`   | `[{"method": "constrained", "parameters": ["user_types"]}]` |
 
 #### `dbsync_column_table`
 
@@ -156,11 +157,7 @@ Each table defines **how it should be synchronized**.
 
 * Data is unavailable during the sync
 
-Used when:
-
-```text
-use_temporal_table = false
-```
+Used when: `use_temporal_table = false`
 
 ---
 
@@ -176,11 +173,9 @@ use_temporal_table = false
 * Minimizes downtime
 * Safer for large datasets
 
-Used when:
+Used when: `use_temporal_table = true`
 
-```text
-use_temporal_table = true
-```
+> The `temporal_table` strategy is not available when a table has self-referential foreign keys. For example, if the `comments` table has the foreign key `comment_id`.
 
 ---
 
@@ -190,11 +185,11 @@ use_temporal_table = true
 
 Defines **source and target Laravel connections**.
 
-| Field             | Description                         |
-|-------------------|-------------------------------------|
-| source_connection | Connection name for the origin      |
-| target_connection | Connection name for the destination |
-| active            | Enables or disables this connection |
+| Field             | Description                         | Examples          |
+|-------------------|-------------------------------------|-------------------|
+| source_connection | Connection name for the origin      | `(string) oracle` |
+| target_connection | Connection name for the destination | `(string) mysql`  |
+| active            | Enables or disables this connection | `(bool) true`     |
 
 ---
 
@@ -202,19 +197,22 @@ Defines **source and target Laravel connections**.
 
 Defines **what to sync and how**.
 
-| Field              | Description                                                                 |
-|--------------------|-----------------------------------------------------------------------------|
-| source_table       | Source table name                                                           |
-| target_table       | Destination table name                                                      |
-| min_records        | Minimum number of records required for the sync to be considered successful |
-| active             | Enables or disables synchronization for this table                          |
-| source_query       | Optional custom SELECT                                                      |
-| use_temporal_table | Enables temporal strategy                                                   |
-| batch_size         | Insert chunk size                                                           |
-| primary_key        | Primary key definition                                                      |
-| unique_keys        | Unique constraints                                                          |
-| indexes            | Index definitions                                                           |
-| connection_id      | Reference to the connection used by this table                              |
+| Field              | Description                                                                 | Type     | Example                 |
+|--------------------|-----------------------------------------------------------------------------|----------|-------------------------|
+| source_table       | Source table name                                                           | (string) | _user_                  |
+| target_table       | Destination table name                                                      | (string) | _user_                  |
+| min_records        | Minimum number of records required for the sync to be considered successful | (int)    | _1_                     |
+| active             | Enables or disables synchronization for this table                          | (bool)   | _true_                  |
+| source_query       | Optional custom SELECT                                                      | (string) | _select..._             |
+| use_temporal_table | Enables temporal strategy                                                   | (bool)   | _true_                  |
+| batch_size         | Insert chunk size                                                           | (int)    | _500_                   |
+| primary_key        | Primary key definition                                                      | (array)  | `["user_id", "rol_id"]` |
+| unique_keys        | Unique constraints                                                          | (array)  | `["user_id", "rol_id"]` |
+| indexes            | Index definitions                                                           | (array)  | `["user_id", "rol_id"]` |
+| connection_id      | Reference to the connection used by this table                              | (int)    | _1_                     |
+
+
+> The fields `primary_key`, `unique_keys`, and `indexes` are only needed when using composite keys. Otherwise, it's better to define them in the `modifiers` field of the `dbsync_columns` table.
 
 ---
 
@@ -222,13 +220,14 @@ Defines **what to sync and how**.
 
 Defines **table structure using Laravel schema semantics**.
 
-| Field      | Description                                    |
-|------------|------------------------------------------------|
-| method     | Blueprint method (`string`, `foreignId`, etc.) |
-| parameters | Method parameters                              |
-| modifiers  | Column modifiers                               |
-
-This keeps schemas database-agnostic and expressive.
+| Field            | Description                                                                                                                             | Type     | Example                                                                                    |
+|------------------|-----------------------------------------------------------------------------------------------------------------------------------------|----------|--------------------------------------------------------------------------------------------|
+| method           | Blueprint method                                                                                                                        | (string) | _string_, _integer_, _decimal_, _foreignId_, _etc_.                                        |
+| parameters       | Method parameters                                                                                                                       | (array)  | `["name", 100]`, `["user_id"]`, _etc_.                                                     |
+| modifiers        | Column modifiers                                                                                                                        | (array)  | `["nullable", "unique"]`, `[{"method": "constrained", "parameters": ["user_id"]}]`, _etc_. |
+| self_referencing | Indicates whether the foreign key references the table itself. For example, `comment_id` in `comments`.                                 | (bool)   | _true_                                                                                     |
+| case_transform   | Indicate whether copying the data will convert it to uppercase or lowercase.                                                            | (string) | _upper_ \| _lower_                                                                         |
+| code             | This column does nothing during synchronization. It's only there to help populate the `dbsync_column_table` table with IDs more easily. | (string) | _user1_                                                                                    |
 
 ---
 

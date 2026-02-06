@@ -10,7 +10,7 @@ use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
 class TableSchemaBuilder
 {
-    protected const METHODS_WITHOUT_NAME_PARAMETER = ['id', 'timestamps'];
+    protected const METHODS_WITHOUT_NAME_PARAMETER = ['id', 'timestamps', 'softDeletes', 'rememberToken'];
 
     public function create(Blueprint $blueprint, DbsyncTable $table): void
     {

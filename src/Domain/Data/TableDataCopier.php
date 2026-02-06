@@ -85,29 +85,24 @@ class TableDataCopier
             $method     = $column->method;
             $parameters = $column->parameters ?? [];
 
-            switch ($method) {
-                case 'id':
-                    $columns[] = 'id';
-                    break;
-
-                case 'timestamps':
-                    $columns[] = 'created_at';
-                    $columns[] = 'updated_at';
-                    break;
-
-                case 'softDeletes':
-                    $columns[] = 'deleted_at';
-                    break;
-
-                case 'rememberToken':
-                    $columns[] = 'remember_token';
-                    break;
-
-                default:
-                    if (! empty($parameters[0])) {
-                        $columns[] = $parameters[0];
-                    }
-                    break;
+            if (! empty($parameters[0])) {
+                $columns[] = $parameters[0];
+            } else {
+                switch ($method) {
+                    case 'id':
+                        $columns[] = 'id';
+                        break;
+                    case 'timestamps':
+                        $columns[] = 'created_at';
+                        $columns[] = 'updated_at';
+                        break;
+                    case 'softDeletes':
+                        $columns[] = 'deleted_at';
+                        break;
+                    case 'rememberToken':
+                        $columns[] = 'remember_token';
+                        break;
+                }
             }
         }
 

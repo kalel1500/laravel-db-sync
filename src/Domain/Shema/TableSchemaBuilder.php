@@ -25,11 +25,13 @@ class TableSchemaBuilder
 
     protected function addColumn(Blueprint $blueprint, DbsyncColumn $column): void
     {
-        if (! in_array($column->method, self::METHODS_WITHOUT_NAME_PARAMETER) && (empty($column->parameters) || ! is_string($column->parameters[0]))) {
+        $params = $column->parameters ?? [];
+
+        if (! in_array($column->method, self::METHODS_WITHOUT_NAME_PARAMETER) && (empty($params) || ! is_string($params[0]))) {
             throw new \InvalidArgumentException('Column definition requires the column name as first parameter.');
         }
 
-        $definition = $blueprint->{$column->method}(...$column->parameters);
+        $definition = $blueprint->{$column->method}(...$params);
 
         foreach ($column->modifiers ?? [] as $modifier) {
             if (is_string($modifier)) {

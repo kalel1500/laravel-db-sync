@@ -31,6 +31,9 @@ class TableSynchronizer
         DbsyncTable      $table
     ): int
     {
+        if ($table->use_temporal_table && $this->hasSelfReferencingForeignKey($table)) {
+            throw new \RuntimeException('Table has self-referencing foreign keys, cannot use temporal table strategy.');
+        }
         return $table->use_temporal_table
             ? $this->syncUsingTemporalTable($connection, $table)
             : $this->syncUsingDrop($connection, $table);
@@ -100,5 +103,59 @@ class TableSynchronizer
         } finally {
             $builder->enableForeignKeyConstraints();
         }
+    }
+
+    protected function hasSelfReferencingForeignKey(DbsyncTable $table): bool
+    {
+        $targetTable = $table->target_table;
+
+        foreach ($table->columns as $column) {
+            if ($column->method !== 'foreignId') {
+                continue;
+            }
+
+            $parameters = $column->parameters ?? [];
+            $modifiers  = $column->modifiers ?? [];
+
+            // Nombre de la columna FK (foreignId('comment_id'))
+            $columnName = $parameters[0] ?? null;
+
+            if (! $columnName) {
+                continue;
+            }
+
+            foreach ($modifiers as $modifier) {
+                // Normalizamos modifier a array
+                if (is_string($modifier)) {
+                    $modifier = ['method' => $modifier];
+                }
+
+                if ($modifier['method'] !== 'constrained') {
+                    continue;
+                }
+
+                // Si constrained tiene parámetros, NO es implícita → no es problema
+                $constrainedParameters = $modifier['parameters'] ?? [];
+
+                if (! empty($constrainedParameters)) {
+                    continue;
+                }
+
+                /**
+                 * constrained() sin parámetros:
+                 * Laravel infiere la tabla desde el nombre de la columna
+                 * Ej: comment_id -> comments
+                 */
+                $base = str($columnName)->replaceLast('_id', '');
+                if (
+                    $targetTable === $base->plural()->toString() ||
+                    $targetTable === $base->singular()->toString()
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

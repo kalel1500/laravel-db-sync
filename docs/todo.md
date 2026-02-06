@@ -1,0 +1,4 @@
+# Tareas pendientes
+
+- [ ] Preguntar por el error de las FKs duplicadas cuando se usa la tabla temporal por segunda vez
+- [ ] Preguntar como permitir que el usuario pueda modificar el builder si quiere controlar mas en detalle la creación en ciertos lenguajes

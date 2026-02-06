@@ -114,12 +114,17 @@ class TableSynchronizer
                 continue;
             }
 
+            if ($column->self_referencing) {
+                return true;
+            }
+
             $parameters = $column->parameters ?? [];
             $modifiers  = $column->modifiers ?? [];
 
             // Nombre de la columna FK (foreignId('comment_id'))
             $columnName = $parameters[0] ?? null;
 
+            // Si no se especifica no hacer nada y dejar que falle luego al crear la tabla
             if (! $columnName) {
                 continue;
             }

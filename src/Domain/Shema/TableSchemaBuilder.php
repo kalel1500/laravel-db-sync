@@ -86,23 +86,37 @@ class TableSchemaBuilder
 
     protected function addUniqueKeys(Blueprint $blueprint, DbsyncTable $table): void
     {
-        foreach ($table->unique_keys ?? [] as $unique) {
-            $name = $this->generateShortName($blueprint->getTable(), implode('_', $unique), 'unq');
-            $blueprint->unique($unique, $name);
+        foreach ($table->unique_keys ?? [] as $columns) {
+            if (! is_array($columns)) {
+                throw new \InvalidArgumentException(
+                    "Table '{$table->target_table}' has an invalid unique_keys format. " .
+                    "Each entry must be an array of columns (e.g., [['email'], ['field1', 'field2']])."
+                );
+            }
+
+            $name = $this->generateShortName($blueprint->getTable(), implode('_', $columns), 'unq');
+            $blueprint->unique($columns, $name);
         }
     }
 
     protected function addIndexes(Blueprint $blueprint, DbsyncTable $table): void
     {
-        foreach ($table->indexes ?? [] as $index) {
-            $name = $this->generateShortName($blueprint->getTable(), implode('_', $index), 'idx');
-            $blueprint->index($index, $name);
+        foreach ($table->indexes ?? [] as $columns) {
+            if (! is_array($columns)) {
+                throw new \InvalidArgumentException(
+                    "Table '{$table->target_table}' has an invalid indexes format. " .
+                    "Each entry must be an array of columns (e.g., [['category_id'], ['active', 'created_at']])."
+                );
+            }
+
+            $name = $this->generateShortName($blueprint->getTable(), implode('_', $columns), 'idx');
+            $blueprint->index($columns, $name);
         }
     }
 
     protected function generateShortName(string $table, string $column, string $type): string
     {
-        // 12 caracteres en total)
+        // 12 caracteres en total
         return substr($type, 0, 3) . '_' . substr(md5($table . $column), 0, 8);
     }
 }

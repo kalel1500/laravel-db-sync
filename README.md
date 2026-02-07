@@ -85,6 +85,8 @@ In `config/database.php`:
 | 2  | roles        | roles        | 100         | true   | null         | false              | 500        | null        | null        | null               | 1             |
 | 2  | types        | types        | 1           | true   | null         | false              | 500        | null        | null        | [["name", "slug"]] | 1             |
 
+> Note on Composite Keys: The `unique_keys` and `indexes` fields must follow an "array of arrays" format: [["col1"], ["col2", "col3"]].
+
 ---
 
 #### `dbsync_columns`
@@ -145,9 +147,7 @@ Each table defines **how it should be synchronized**.
 
 ### Drop & Recreate
 
-* Drops the destination table
-* Recreates it
-* Inserts all rows
+Drops the destination table and recreates it. Downtime occurs during the data insertion phase.
 
 **Pros**
 
@@ -169,18 +169,35 @@ Used when: `use_temporal_table = false`
 * Drops the original table
 * Renames the temporary table
 
+> Oracle Compatibility: This package automatically generates short, unique names (max 12 chars) for all indexes and constraints (e.g., unq_a1b2c3d4). This prevents naming collisions and "Identifier too long" errors during the rename process in Oracle.
+
 **Pros**
 
 * Minimizes downtime
 * Safer for large datasets
 
+**Cons**
+
+* It does not support self-referential fks
+
 Used when: `use_temporal_table = true`
 
-> The `temporal_table` strategy is not available when a table has self-referential foreign keys. For example, if the `comments` table has the foreign key `comment_id`.
-> 
-> To detect that a foreign key is self-referencing, the `self_referencing` field must be set to `true`.
-> 
-> #### IMPORTANT: If you do not do this, the synchronization will throw an error.
+---
+
+## Important Constraints
+
+### 1. Self-Referencing Foreign Keys
+
+The `temporal_table` strategy is not available if a table has self-referential foreign keys. For example, if the `comments` table has the foreign key `comment_id`.
+* You must set `self_referencing = true` in the `dbsync_columns` record.
+* The system will automatically fallback to the `Drop & Recreate` strategy for that table.
+* If you set the `use_temporal_table` and `self_referencing` fields to `true`, the synchronization will throw an error.
+
+### 2. Forbidden Methods in Columns
+
+In `dbsync_columns`, the method field must only contain data types (_string_, _integer_, etc.).
+* Do not use `primary`, `unique`, `index`, or foreign as a `method`.
+* Use modifiers for single-column constraints or the `dbsync_tables` fields for composite constraints.
 
 ---
 
@@ -256,19 +273,17 @@ This pivot table determines **which columns belong to each synchronized table an
 
 ### `dbsync_table_runs`
 
-Each table execution creates a log entry with:
+Every execution is logged. You can monitor:
 
-* status: `running`, `success`, `failed`
-* rows copied
-* start and finish timestamps
-* error message and stack trace (if failed)
+* **Status:** `running`, `success`, or `failed`
+* **Rows copied:** Precise count of processed records.
+* **Times:** Start and finish timestamps
+* **Error:** Full stack trace and error message in case of failure.
 
 Key behaviors:
 
 * Each table runs independently
 * A failure does **not** stop other tables
-* No global schema transactions
-* Designed for heterogeneous databases
 
 This makes the process safe for long-running and large imports.
 

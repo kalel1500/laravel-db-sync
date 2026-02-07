@@ -116,8 +116,8 @@ class TableSchemaBuilder
 
     protected function generateShortName(string $table, string $column, string $type): string
     {
-        // 12 caracteres en total
-        return substr($type, 0, 3) . '_' . substr(md5($table . $column), 0, 8);
+        // Usamos un separador ':' dentro del hash para evitar colisiones por concatenación simple || 12 caracteres: tipo(3) + '_' + hash(8)
+        return substr($type, 0, 3) . '_' . substr(md5($table . ':' . $column), 0, 8);
     }
 }
 

@@ -33,6 +33,14 @@ class TableSchemaBuilder
             throw new \InvalidArgumentException('Column definition requires the column name as first parameter.');
         }
 
+        if (in_array($method, ['foreign', 'index', 'unique', 'primary'])) {
+            throw new \InvalidArgumentException(
+                "The method '{$method}' is not allowed as a column definition. " .
+                "To define constraints, use modifiers (e.g., ->unique()) for single columns " .
+                "or the 'dbsync_tables' fields for composite keys."
+            );
+        }
+
         // 1. Crear la definición base (ej: $table->string('email'))
         $definition = $blueprint->{$method}(...$params);
 

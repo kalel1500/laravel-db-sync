@@ -26,41 +26,76 @@ class TableSchemaBuilder
     protected function addColumn(Blueprint $blueprint, DbsyncColumn $column): void
     {
         $params = $column->parameters ?? [];
+        $method = $column->method;
+        $tableName = $blueprint->getTable();
 
-        if (! in_array($column->method, self::METHODS_WITHOUT_NAME_PARAMETER) && (empty($params) || ! is_string($params[0]))) {
+        if (! in_array($method, self::METHODS_WITHOUT_NAME_PARAMETER) && (empty($params) || ! is_string($params[0]))) {
             throw new \InvalidArgumentException('Column definition requires the column name as first parameter.');
         }
 
-        $definition = $blueprint->{$column->method}(...$params);
+        // 1. Crear la definición base (ej: $table->string('email'))
+        $definition = $blueprint->{$method}(...$params);
 
+        // 2. Aplicar modificadores
         foreach ($column->modifiers ?? [] as $modifier) {
-            if (is_string($modifier)) {
-                $definition->{$modifier}();
-            } elseif (is_array($modifier)) {
-                $definition->{$modifier['method']}(...($modifier['parameters'] ?? []));
+            $mMethod = is_array($modifier) ? $modifier['method'] : $modifier;
+            $mParams = is_array($modifier) ? ($modifier['parameters'] ?? []) : [];
+
+            if (in_array($mMethod, ['index', 'unique', 'primary', 'constrained'])) {
+                // Generamos el nombre corto (el que salva a Oracle)
+                $shortName = $this->generateShortName($tableName, $params[0], $mMethod);
+
+                if ($mMethod === 'constrained') {
+                    // constrained($table = null, $column = null, $indexName = null) || Necesitamos asegurar que el nombre vaya en la tercera posición
+                    if (count($mParams) === 0) {
+                        $mParams = [null, null, $shortName];
+                    } elseif (count($mParams) === 1) {
+                        $mParams[] = null;
+                        $mParams[] = $shortName;
+                    } elseif (count($mParams) === 2) {
+                        $mParams[] = $shortName;
+                    }
+                    // Si ya tiene 3 parámetros, el usuario ya puso un nombre, lo respetamos.
+                } else {
+                    // index, unique, primary como MODIFICADORES || El nombre es el PRIMER parámetro: ->unique('nombre_corto')
+                    if (empty($mParams)) {
+                        $mParams = [$shortName];
+                    }
+                }
             }
+
+            $definition->{$mMethod}(...$mParams);
         }
     }
 
     protected function addPrimaryKey(Blueprint $blueprint, DbsyncTable $table): void
     {
         if ($table->primary_key) {
-            $blueprint->primary($table->primary_key);
+            $name = $this->generateShortName($blueprint->getTable(), implode('_', $table->primary_key), 'pk');
+            $blueprint->primary($table->primary_key, $name);
         }
     }
 
     protected function addUniqueKeys(Blueprint $blueprint, DbsyncTable $table): void
     {
         foreach ($table->unique_keys ?? [] as $unique) {
-            $blueprint->unique($unique);
+            $name = $this->generateShortName($blueprint->getTable(), implode('_', $unique), 'unq');
+            $blueprint->unique($unique, $name);
         }
     }
 
     protected function addIndexes(Blueprint $blueprint, DbsyncTable $table): void
     {
         foreach ($table->indexes ?? [] as $index) {
-            $blueprint->index($index);
+            $name = $this->generateShortName($blueprint->getTable(), implode('_', $index), 'idx');
+            $blueprint->index($index, $name);
         }
+    }
+
+    protected function generateShortName(string $table, string $column, string $type): string
+    {
+        // 12 caracteres en total)
+        return substr($type, 0, 3) . '_' . substr(md5($table . $column), 0, 8);
     }
 }
 

@@ -79,10 +79,11 @@ In `config/database.php`:
 
 #### `dbsync_tables`
 
-| id | connection_id | source_table | target_table | min_records | active | source_query | use_temporal_table | batch_size |
-|----|---------------|--------------|--------------|-------------|--------|--------------|--------------------|------------|
-| 1  | 1             | users        | users        | 300         | true   | null         | true               | 1000       |
-| 2  | 1             | roles        | roles        | 100         | true   | null         | false              | 500        |
+| id | source_table | target_table | min_records | active | source_query | use_temporal_table | batch_size | primary_key | unique_keys | indexes            | connection_id |
+|----|--------------|--------------|-------------|--------|--------------|--------------------|------------|-------------|-------------|--------------------|---------------|
+| 1  | users        | users        | 300         | true   | null         | true               | 1000       | null        | null        | null               | 1             |
+| 2  | roles        | roles        | 100         | true   | null         | false              | 500        | null        | null        | null               | 1             |
+| 2  | types        | types        | 1           | true   | null         | false              | 500        | null        | null        | [["name", "slug"]] | 1             |
 
 ---
 
@@ -176,6 +177,10 @@ Used when: `use_temporal_table = false`
 Used when: `use_temporal_table = true`
 
 > The `temporal_table` strategy is not available when a table has self-referential foreign keys. For example, if the `comments` table has the foreign key `comment_id`.
+> 
+> To detect that a foreign key is self-referencing, the `self_referencing` field must be set to `true`.
+> 
+> #### IMPORTANT: If you do not do this, the synchronization will throw an error.
 
 ---
 
@@ -185,11 +190,11 @@ Used when: `use_temporal_table = true`
 
 Defines **source and target Laravel connections**.
 
-| Field             | Description                         | Examples          |
-|-------------------|-------------------------------------|-------------------|
-| source_connection | Connection name for the origin      | `(string) oracle` |
-| target_connection | Connection name for the destination | `(string) mysql`  |
-| active            | Enables or disables this connection | `(bool) true`     |
+| Field             | Description                         | Type       | Example  |
+|-------------------|-------------------------------------|------------|----------|
+| source_connection | Connection name for the origin      | `(string)` | _oracle_ |
+| target_connection | Connection name for the destination | `(string)` | _mysql_  |
+| active            | Enables or disables this connection | `(bool)`   | _true_   |
 
 ---
 
@@ -197,22 +202,24 @@ Defines **source and target Laravel connections**.
 
 Defines **what to sync and how**.
 
-| Field              | Description                                                                 | Type     | Example                 |
-|--------------------|-----------------------------------------------------------------------------|----------|-------------------------|
-| source_table       | Source table name                                                           | (string) | _user_                  |
-| target_table       | Destination table name                                                      | (string) | _user_                  |
-| min_records        | Minimum number of records required for the sync to be considered successful | (int)    | _1_                     |
-| active             | Enables or disables synchronization for this table                          | (bool)   | _true_                  |
-| source_query       | Optional custom SELECT                                                      | (string) | _select..._             |
-| use_temporal_table | Enables temporal strategy                                                   | (bool)   | _true_                  |
-| batch_size         | Insert chunk size                                                           | (int)    | _500_                   |
-| primary_key        | Primary key definition                                                      | (array)  | `["user_id", "rol_id"]` |
-| unique_keys        | Unique constraints                                                          | (array)  | `["user_id", "rol_id"]` |
-| indexes            | Index definitions                                                           | (array)  | `["user_id", "rol_id"]` |
-| connection_id      | Reference to the connection used by this table                              | (int)    | _1_                     |
+| Field              | Description                                                                 | Type     | Example                     |
+|--------------------|-----------------------------------------------------------------------------|----------|-----------------------------|
+| source_table       | Source table name                                                           | (string) | _user_                      |
+| target_table       | Destination table name                                                      | (string) | _user_                      |
+| min_records        | Minimum number of records required for the sync to be considered successful | (int)    | _1_                         |
+| active             | Enables or disables synchronization for this table                          | (bool)   | _true_                      |
+| source_query       | Optional custom SELECT                                                      | (string) | _select..._                 |
+| use_temporal_table | Enables temporal strategy                                                   | (bool)   | _true_                      |
+| batch_size         | Insert chunk size                                                           | (int)    | _500_                       |
+| primary_key        | * Primary key definition                                                    | (array)  | `["user_id", "rol_id"]`     |
+| unique_keys        | * Unique constraints                                                        | (array)  | `[["name", "type"]]`        |
+| indexes            | * Index definitions                                                         | (array)  | `[["name", "description"]]` |
+| connection_id      | Reference to the connection used by this table                              | (int)    | _1_                         |
 
 
-> The fields `primary_key`, `unique_keys`, and `indexes` are only needed when using composite keys. Otherwise, it's better to define them in the `modifiers` field of the `dbsync_columns` table.
+> The `primary_key`, `unique_keys`, and `indexes` fields are only required when using composite keys. Otherwise, they must be defined in the `modifiers` field of the `dbsync_columns` table.
+> 
+> #### IMPORTANT: The format of these fields is an "array of arrays". Otherwise, the execution will throw an error.
 
 ---
 

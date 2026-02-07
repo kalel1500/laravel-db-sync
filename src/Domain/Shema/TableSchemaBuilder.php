@@ -114,10 +114,12 @@ class TableSchemaBuilder
         }
     }
 
-    protected function generateShortName(string $table, string $column, string $type): string
+    protected function generateShortName(string $currentTableName, string $column, string $type): string
     {
-        // Usamos un separador ':' dentro del hash para evitar colisiones por concatenación simple || 12 caracteres: tipo(3) + '_' + hash(8)
-        return substr($type, 0, 3) . '_' . substr(md5($table . ':' . $column), 0, 8);
+        // $currentTableName ya es 'users_t8a2f' porque lo definimos en el paso anterior
+        // Esto garantiza que el hash sea único para esta ejecución, pero constante
+        // mientras dure el proceso de creación.
+        return substr($type, 0, 3) . '_' . substr(md5($currentTableName . ':' . $column), 0, 8);
     }
 }
 

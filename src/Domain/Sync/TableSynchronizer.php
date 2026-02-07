@@ -62,7 +62,7 @@ class TableSynchronizer
         DbsyncTable      $table
     ): int
     {
-        $tempTable   = $table->target_table . '_tmp';
+        $tempTable   = $this->temporaryTableName($table->target_table);
         $targetShema = Schema::connection($connection->target_connection);
 
         // Limpieza por si quedó algo colgado
@@ -93,6 +93,11 @@ class TableSynchronizer
         $targetShema->rename($tempTable, $table->target_table);
 
         return $rows;
+    }
+
+    protected function temporaryTableName(string $targetTable): string
+    {
+        return substr($targetTable, 0, 20) . '_t' . substr(md5((string)now()->timestamp), 0, 4);
     }
 
     protected function dropTableIfExists(Builder $builder, string $tableName): void

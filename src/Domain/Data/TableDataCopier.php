@@ -82,15 +82,14 @@ class TableDataCopier
         $columns = [];
 
         foreach ($table->columns->sortBy('pivot.order') as $column) {
-            $method     = $column->method;
-            $parameters = $column->parameters ?? [];
+            $method = $column->method;
+            $params = $column->parameters ?? [];
 
-            if (! empty($parameters[0])) {
-                $columns[] = $parameters[0];
-            } else {
+            // CASO 1: Métodos sin parámetros de nombre (Nombres fijos de Laravel)
+            if (in_array($method, ['id', 'timestamps', 'softDeletes', 'rememberToken'])) {
                 switch ($method) {
                     case 'id':
-                        $columns[] = 'id';
+                        $columns[] = empty($params) ? 'id' : $params[0];
                         break;
                     case 'timestamps':
                         $columns[] = 'created_at';
@@ -103,6 +102,12 @@ class TableDataCopier
                         $columns[] = 'remember_token';
                         break;
                 }
+                continue;
+            }
+
+            // CASO 2: foreignId y similares (Laravel usa el primer parámetro como nombre de columna)
+            if (!empty($params[0]) && is_string($params[0])) {
+                $columns[] = $params[0];
             }
         }
 

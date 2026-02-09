@@ -35,22 +35,26 @@ class TableSynchronizer
         if ($table->use_temporal_table && $this->hasSelfReferencingForeignKey($table)) {
             throw new \RuntimeException('Table has self-referencing foreign keys, cannot use temporal table strategy.');
         }
+
+        $targetConnection = DB::connection($connection->target_connection);
+        $targetShema      = $targetConnection->getSchemaBuilder();
         return $table->use_temporal_table
-            ? $this->syncUsingTemporalTable($connection, $table)
-            : $this->syncUsingDrop($connection, $table);
+            ? $this->syncUsingTemporalTable($connection, $table, $targetConnection, $targetShema)
+            : $this->syncUsingDrop($connection, $table, $targetConnection, $targetShema);
     }
 
     protected function syncUsingDrop(
         DbsyncConnection $connection,
-        DbsyncTable      $table
+        DbsyncTable      $table,
+        Connection       $targetConnection,
+        Builder          $targetShema,
     ): int
     {
-        $this->forceDropTableIfExists(Schema::connection($connection->target_connection), $table->target_table);
+        $this->forceDropTableIfExists($targetConnection, $table->target_table);
 
-        Schema::connection($connection->target_connection)
-            ->create($table->target_table, function (Blueprint $blueprint) use ($table) {
-                $this->schemaBuilder->create($blueprint, $table);
-            });
+        $targetShema->create($table->target_table, function (Blueprint $blueprint) use ($table) {
+            $this->schemaBuilder->create($blueprint, $table);
+        });
 
         return $this->dataCopier->copy($connection, $table);
     }
@@ -60,12 +64,12 @@ class TableSynchronizer
      */
     protected function syncUsingTemporalTable(
         DbsyncConnection $connection,
-        DbsyncTable      $table
+        DbsyncTable      $table,
+        Connection       $targetConnection,
+        Builder          $targetShema,
     ): int
     {
         $tempTable        = $this->temporaryTableName($table->target_table);
-        $targetConnection = DB::connection($connection->target_connection);
-        $targetShema      = $targetConnection->getSchemaBuilder();
 
         // Limpieza por si quedó algo colgado
         $this->forceDropTableIfExists($targetConnection, $tempTable);

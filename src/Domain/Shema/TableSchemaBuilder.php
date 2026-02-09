@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Thehouseofel\Dbsync\Domain\Shema;
 
 use Illuminate\Database\Schema\Blueprint;
+use Thehouseofel\Dbsync\Domain\Traits\HasShortNames;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncColumn;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
 class TableSchemaBuilder
 {
+    use HasShortNames;
+
     protected const METHODS_WITHOUT_NAME_PARAMETER = ['id', 'timestamps', 'softDeletes', 'rememberToken'];
 
     public function create(Blueprint $blueprint, DbsyncTable $table): void
@@ -50,26 +53,7 @@ class TableSchemaBuilder
             $mParams = is_array($modifier) ? ($modifier['parameters'] ?? []) : [];
 
             if (in_array($mMethod, ['index', 'unique', 'primary', 'constrained'])) {
-                // Generamos el nombre corto (el que salva a Oracle)
-                $shortName = $this->generateShortName($tableName, $params[0], $mMethod);
-
-                if ($mMethod === 'constrained') {
-                    // constrained($table = null, $column = null, $indexName = null) || Necesitamos asegurar que el nombre vaya en la tercera posición
-                    if (count($mParams) === 0) {
-                        $mParams = [null, null, $shortName];
-                    } elseif (count($mParams) === 1) {
-                        $mParams[] = null;
-                        $mParams[] = $shortName;
-                    } elseif (count($mParams) === 2) {
-                        $mParams[] = $shortName;
-                    }
-                    // Si ya tiene 3 parámetros, el usuario ya puso un nombre, lo respetamos.
-                } else {
-                    // index, unique, primary como MODIFICADORES || El nombre es el PRIMER parámetro: ->unique('nombre_corto')
-                    if (empty($mParams)) {
-                        $mParams = [$shortName];
-                    }
-                }
+                $mParams = $this->applyShortName($tableName, $params[0], $mMethod, $mParams);
             }
 
             $definition->{$mMethod}(...$mParams);

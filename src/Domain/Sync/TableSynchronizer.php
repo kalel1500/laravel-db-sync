@@ -9,8 +9,10 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Thehouseofel\Dbsync\Domain\Data\TableDataCopier;
 use Thehouseofel\Dbsync\Domain\Shema\TableSchemaBuilder;
+use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncColumn;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 use Throwable;
@@ -56,6 +58,8 @@ class TableSynchronizer
             $this->schemaBuilder->create($blueprint, $table);
         });
 
+        $this->rebuildDependentForeignKeys($targetShema, $table);
+
         return $this->dataCopier->copy($connection, $table);
     }
 
@@ -79,6 +83,8 @@ class TableSynchronizer
             ->create($tempTable, function (Blueprint $blueprint) use ($table) {
                 $this->schemaBuilder->create($blueprint, $table);
             });
+
+        $this->rebuildDependentForeignKeys($targetShema, $table);
 
         try {
             // Copiar datos a la temporal
@@ -236,5 +242,69 @@ class TableSynchronizer
             // El resultado del select es el comando SQL completo
             $connection->statement(current((array)$constraint));
         }
+    }
+
+    /**
+     * Busca y recrea las claves foráneas de otras tablas que apuntan a la tabla recién sincronizada.
+     */
+    protected function rebuildDependentForeignKeys(Builder $targetShema, DbsyncTable $syncedTable): void
+    {
+        $tableName = $syncedTable->target_table;
+
+        // 1. Buscamos todas las columnas de OTRAS tablas que podrían referenciar a esta
+        $dependentColumns = DbsyncColumn::whereHas('tables', function ($query) use ($syncedTable) {
+            $query->where('dbsync_tables.id', '!=', $syncedTable->id);
+        })
+            ->where(function ($query) {
+                $query->where('method', 'foreignId')
+                    ->orWhere('modifiers', 'LIKE', '%constrained%');
+            })
+            ->get();
+
+        foreach ($dependentColumns as $column) {
+            $referencedTable = $this->guessReferencedTable($column);
+
+            if ($referencedTable === $tableName) {
+                // 2. Por cada tabla que usa esta columna, relanzamos el comando de la FK
+                foreach ($column->tables as $tableToFix) {
+
+                    // OPCIONAL: Verificar si la tabla existe antes de intentar fixearla
+                    // para evitar errores si la tabla dependiente aún no se ha creado nunca.
+
+                    $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $referencedTable) {
+                        $colName = $column->parameters[0] ?? null;
+                        if (!$colName) return;
+
+                        // Re-aplicamos la constraint.
+                        // Laravel detectará que la columna ya existe y solo añadirá la FK.
+                        $blueprint->foreign($colName)
+                            ->references('id') // Asumimos id por convención o según tu lógica
+                            ->on($referencedTable)
+                            ->cascadeOnDelete(); // O la lógica que prefieras
+                    });
+                }
+            }
+        }
+    }
+
+    /**
+     * Lógica para obtener el nombre de la tabla referenciada (Paso 4 y 5 de tu propuesta)
+     */
+    protected function guessReferencedTable(DbsyncColumn $column): ?string
+    {
+        $modifiers = $column->modifiers ?? [];
+
+        foreach ($modifiers as $modifier) {
+            if (is_array($modifier) && $modifier['method'] === 'constrained') {
+                // Si tiene parámetro en constrained: constrained('users')
+                if (!empty($modifier['parameters'][0])) {
+                    return $modifier['parameters'][0];
+                }
+            }
+        }
+
+        // Si no hay parámetro en constrained, inferimos por el nombre de la columna: user_id -> users
+        $colName = $column->parameters[0] ?? '';
+        return Str::plural(Str::before($colName, '_id'));
     }
 }

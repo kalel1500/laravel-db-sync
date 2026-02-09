@@ -276,7 +276,7 @@ class TableSynchronizer
     {
         $tableName = $syncedTable->target_table;
 
-        // 1. Buscamos columnas de otras tablas que apunten a esta
+        // Buscar columnas de otras tablas que apunten a esta tabla
         $potentialColumns = DbsyncColumn::with('tables')
             ->whereHas('tables', function ($query) use ($syncedTable) {
                 $query->where('dbsync_tables.id', '!=', $syncedTable->id);
@@ -296,28 +296,29 @@ class TableSynchronizer
 
                 $referencedTable = $this->guessReferencedTable($column);
 
-                if ($referencedTable === $tableName) {
-                    // Solo si la tabla destino existe
-                    if (! $targetShema->hasTable($tableToFix->target_table)) continue;
+                // Validar que la FK pertenece a la tabla que acabamos de sincronizar (y no a otra tabla que tenga una columna con el mismo nombre)
+                if ($referencedTable !== $tableName) continue;
 
-                    $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $tableToFix, $referencedTable) {
-                        $colName = $column->parameters[0];
+                // Crear FKs SOLO si existe la tabla referenciada
+                if (! $targetShema->hasTable($tableToFix->target_table)) continue;
 
-                        // Extraemos el modificador 'constrained' original
-                        $constrainedModifier = collect($column->modifiers)->firstWhere('method', 'constrained');
-                        $originalParams      = is_array($constrainedModifier) ? ($constrainedModifier['parameters'] ?? []) : [];
+                $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $tableToFix, $referencedTable) {
+                    $colName = $column->parameters[0];
 
-                        // Aplicamos el nombre corto (o el del usuario)
-                        $finalParams = $this->applyShortName($tableToFix->target_table, $colName, 'constrained', $originalParams);
+                    // Extraemos el modificador 'constrained' original
+                    $constrainedModifier = collect($column->modifiers)->firstWhere('method', 'constrained');
+                    $originalParams      = is_array($constrainedModifier) ? ($constrainedModifier['parameters'] ?? []) : [];
 
-                        // Re-creamos la clave foránea
-                        // $finalParams[0] es la tabla, [1] la columna referenciada, [2] el nombre del índice
-                        $blueprint->foreign($colName, $finalParams[2])
-                            ->references($finalParams[1] ?? 'id')
-                            ->on($finalParams[0] ?? $referencedTable)
-                            ->cascadeOnDelete();
-                    });
-                }
+                    // Aplicamos el nombre corto (o el del usuario)
+                    $finalParams = $this->applyShortName($tableToFix->target_table, $colName, 'constrained', $originalParams);
+
+                    // Re-creamos la clave foránea
+                    // $finalParams[0] es la tabla, [1] la columna referenciada, [2] el nombre del índice
+                    $blueprint->foreign($colName, $finalParams[2])
+                        ->references($finalParams[1] ?? 'id')
+                        ->on($finalParams[0] ?? $referencedTable)
+                        ->cascadeOnDelete();
+                });
             }
         }
     }

@@ -93,13 +93,8 @@ class TableSynchronizer
             $this->schemaBuilder->create($blueprint, $table);
         });
 
-        // 4. Reconstrucción CONDICIONAL de FKs externas
-        if ($this->driverDestroysForeignKeys($targetConnection)) {
-            $this->rebuildDependentForeignKeys($targetShema, $table);
-        }
-
         try {
-            // 5. Copiar datos a la temporal
+            // 4. Copiar datos a la temporal
             $rows = $this->dataCopier->copyToTarget(
                 $connection,
                 $table,
@@ -112,9 +107,14 @@ class TableSynchronizer
             throw $e;
         }
 
-        // 6. Swap final (no transaccional por limitaciones DDL cross-engine)
+        // 5. Swap final (no transaccional por limitaciones DDL cross-engine)
         $this->forceDropTableIfExists($targetConnection, $table->target_table);
         $targetShema->rename($tempTable, $table->target_table);
+
+        // 6. Reconstrucción CONDICIONAL de FKs externas
+        if ($this->driverDestroysForeignKeys($targetConnection)) {
+            $this->rebuildDependentForeignKeys($targetShema, $table);
+        }
 
         // 7. Retornar número de filas copiadas
         return $rows;

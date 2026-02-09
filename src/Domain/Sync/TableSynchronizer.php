@@ -55,14 +55,18 @@ class TableSynchronizer
         Builder          $targetShema,
     ): int
     {
+        // 1. Borrado forzoso (usando CASCADE en Oracle/Postgres)
         $this->forceDropTableIfExists($targetConnection, $table->target_table);
 
+        // 2. Creación de la nueva tabla
         $targetShema->create($table->target_table, function (Blueprint $blueprint) use ($table) {
             $this->schemaBuilder->create($blueprint, $table);
         });
 
+        // 3. Reconstrucción de FKs externas
         $this->rebuildDependentForeignKeys($targetShema, $table);
 
+        // 4. Copia de datos
         return $this->dataCopier->copy($connection, $table);
     }
 
@@ -76,21 +80,22 @@ class TableSynchronizer
         Builder          $targetShema,
     ): int
     {
-        $tempTable        = $this->temporaryTableName($table->target_table);
+        // 1. Crear nombre de tabla temporal único
+        $tempTable = $this->temporaryTableName($table->target_table);
 
-        // Limpieza por si quedó algo colgado
+        // 2. Borrado forzoso de la tabla temporal por si acaso (aunque debería ser única)
         $this->forceDropTableIfExists($targetConnection, $tempTable);
 
-        // Crear tabla temporal
-        $targetShema
-            ->create($tempTable, function (Blueprint $blueprint) use ($table) {
-                $this->schemaBuilder->create($blueprint, $table);
-            });
+        // 3. Creación de la nueva tabla temporal
+        $targetShema->create($tempTable, function (Blueprint $blueprint) use ($table) {
+            $this->schemaBuilder->create($blueprint, $table);
+        });
 
+        // 4. Reconstrucción de FKs externas
         $this->rebuildDependentForeignKeys($targetShema, $table);
 
         try {
-            // Copiar datos a la temporal
+            // 5. Copiar datos a la temporal
             $rows = $this->dataCopier->copyToTarget(
                 $connection,
                 $table,
@@ -103,10 +108,11 @@ class TableSynchronizer
             throw $e;
         }
 
-        // Swap final (no transaccional por limitaciones DDL cross-engine)
+        // 6. Swap final (no transaccional por limitaciones DDL cross-engine)
         $this->forceDropTableIfExists($targetConnection, $table->target_table);
         $targetShema->rename($tempTable, $table->target_table);
 
+        // 7. Retornar número de filas copiadas
         return $rows;
     }
 
@@ -179,11 +185,11 @@ class TableSynchronizer
      */
     public function forceDropTableIfExists(Connection $connection, string $tableName): void
     {
-        $schema       = $connection->getSchemaBuilder();
-        $driver       = $connection->getDriverName();
+        $schema = $connection->getSchemaBuilder();
+        $driver = $connection->getDriverName();
 
         // Obtenemos el nombre con el prefijo configurado
-        $prefix = $connection->getConfig('prefix') ?? ''; // $connection->getTablePrefix()
+        $prefix              = $connection->getConfig('prefix') ?? ''; // $connection->getTablePrefix()
         $tableNameWithPrefix = $prefix . $tableName;
 
         switch ($driver) {
@@ -266,14 +272,14 @@ class TableSynchronizer
             if ($this->guessReferencedTable($column) === $tableName) {
                 foreach ($column->tables as $tableToFix) {
                     // Solo si la tabla ya existe en el destino
-                    if (!$targetShema->hasTable($tableToFix->target_table)) continue;
+                    if (! $targetShema->hasTable($tableToFix->target_table)) continue;
 
                     $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $tableToFix) {
                         $colName = $column->parameters[0];
 
                         // Extraemos el modificador 'constrained' original
                         $constrainedModifier = collect($column->modifiers)->firstWhere('method', 'constrained');
-                        $originalParams = is_array($constrainedModifier) ? ($constrainedModifier['parameters'] ?? []) : [];
+                        $originalParams      = is_array($constrainedModifier) ? ($constrainedModifier['parameters'] ?? []) : [];
 
                         // Aplicamos el nombre corto (o el del usuario)
                         $finalParams = $this->applyShortName($tableToFix->target_table, $colName, 'constrained', $originalParams);
@@ -300,7 +306,7 @@ class TableSynchronizer
         foreach ($modifiers as $modifier) {
             if (is_array($modifier) && $modifier['method'] === 'constrained') {
                 // Si tiene parámetro en constrained: constrained('users')
-                if (!empty($modifier['parameters'][0])) {
+                if (! empty($modifier['parameters'][0])) {
                     return $modifier['parameters'][0];
                 }
             }

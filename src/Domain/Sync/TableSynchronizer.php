@@ -277,7 +277,7 @@ class TableSynchronizer
         $tableName = $syncedTable->target_table;
 
         // 1. Buscamos columnas de otras tablas que apunten a esta
-        $dependentColumns = DbsyncColumn::with('tables')
+        $potentialColumns = DbsyncColumn::with('tables')
             ->whereHas('tables', function ($query) use ($syncedTable) {
                 $query->where('dbsync_tables.id', '!=', $syncedTable->id);
             })
@@ -287,13 +287,17 @@ class TableSynchronizer
             })
             ->get();
 
-        foreach ($dependentColumns as $column) {
+        foreach ($potentialColumns as $column) {
+            // Iteramos las tablas que usan esta columna
+            foreach ($column->tables as $tableToFix) {
 
-            $referencedTable = $this->guessReferencedTable($column);
+                // Saltamos la tabla que acabamos de crear, ya que tiene las FKs bien creadas (en teoria ya no vienen en la query)
+                if ($tableToFix->id === $syncedTable->id) continue;
 
-            if ($referencedTable === $tableName) {
-                foreach ($column->tables as $tableToFix) {
-                    // Solo si la tabla ya existe en el destino
+                $referencedTable = $this->guessReferencedTable($column);
+
+                if ($referencedTable === $tableName) {
+                    // Solo si la tabla destino existe
                     if (! $targetShema->hasTable($tableToFix->target_table)) continue;
 
                     $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $tableToFix, $referencedTable) {
@@ -319,7 +323,7 @@ class TableSynchronizer
     }
 
     /**
-     * Lógica para obtener el nombre de la tabla referenciada (Paso 4 y 5 de tu propuesta)
+     * Lógica para obtener el nombre de la tabla referenciada
      */
     protected function guessReferencedTable(DbsyncColumn $column): ?string
     {
@@ -335,7 +339,6 @@ class TableSynchronizer
         }
 
         // Si no hay parámetro en constrained, inferimos por el nombre de la columna: user_id -> users
-        $colName = $column->parameters[0] ?? '';
-        return Str::plural(Str::before($colName, '_id'));
+        return Str::plural(Str::before($column->parameters[0] ?? '', '_id'));
     }
 }

@@ -97,13 +97,5 @@ class TableSchemaBuilder
             $blueprint->index($columns, $name);
         }
     }
-
-    protected function generateShortName(string $currentTableName, string $column, string $type): string
-    {
-        // $currentTableName ya es 'users_t8a2f' porque lo definimos en el paso anterior
-        // Esto garantiza que el hash sea único para esta ejecución, pero constante
-        // mientras dure el proceso de creación.
-        return substr($type, 0, 3) . '_' . substr(md5($currentTableName . ':' . $column), 0, 8);
-    }
 }
 

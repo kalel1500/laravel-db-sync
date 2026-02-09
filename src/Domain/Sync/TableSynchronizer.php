@@ -277,12 +277,15 @@ class TableSynchronizer
         $tableName = $syncedTable->target_table;
 
         // 1. Buscamos columnas de otras tablas que apunten a esta
-        $dependentColumns = DbsyncColumn::whereHas('tables', function ($query) use ($syncedTable) {
-            $query->where('dbsync_tables.id', '!=', $syncedTable->id);
-        })->where(function ($query) {
-            $query->where('method', 'foreignId')
-                ->orWhere('modifiers', 'LIKE', '%constrained%');
-        })->get();
+        $dependentColumns = DbsyncColumn::with('tables')
+            ->whereHas('tables', function ($query) use ($syncedTable) {
+                $query->where('dbsync_tables.id', '!=', $syncedTable->id);
+            })
+            ->where(function ($query) {
+                $query->where('method', 'foreignId')
+                    ->orWhere('modifiers', 'LIKE', '%constrained%');
+            })
+            ->get();
 
         foreach ($dependentColumns as $column) {
             if ($this->guessReferencedTable($column) === $tableName) {

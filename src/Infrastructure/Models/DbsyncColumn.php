@@ -16,4 +16,11 @@ class DbsyncColumn extends Model
         'parameters' => 'array',
         'modifiers'  => 'array',
     ];
+
+    public function tables()
+    {
+        return $this->belongsToMany(DbsyncTable::class, 'dbsync_column_table','column_id', 'table_id')
+            ->withPivot('order')
+            ->orderBy('dbsync_column_table.order');
+    }
 }

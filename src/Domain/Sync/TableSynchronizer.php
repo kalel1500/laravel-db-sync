@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Thehouseofel\Dbsync\Domain\Data\TableDataCopier;
 use Thehouseofel\Dbsync\Domain\Shema\TableSchemaBuilder;
+use Thehouseofel\Dbsync\Domain\Traits\HasShortNames;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncColumn;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
@@ -19,6 +20,8 @@ use Throwable;
 
 class TableSynchronizer
 {
+    use HasShortNames;
+
     public function __construct(
         protected TableSchemaBuilder $schemaBuilder,
         protected TableDataCopier    $dataCopier
@@ -251,36 +254,36 @@ class TableSynchronizer
     {
         $tableName = $syncedTable->target_table;
 
-        // 1. Buscamos todas las columnas de OTRAS tablas que podrían referenciar a esta
+        // 1. Buscamos columnas de otras tablas que apunten a esta
         $dependentColumns = DbsyncColumn::whereHas('tables', function ($query) use ($syncedTable) {
             $query->where('dbsync_tables.id', '!=', $syncedTable->id);
-        })
-            ->where(function ($query) {
-                $query->where('method', 'foreignId')
-                    ->orWhere('modifiers', 'LIKE', '%constrained%');
-            })
-            ->get();
+        })->where(function ($query) {
+            $query->where('method', 'foreignId')
+                ->orWhere('modifiers', 'LIKE', '%constrained%');
+        })->get();
 
         foreach ($dependentColumns as $column) {
-            $referencedTable = $this->guessReferencedTable($column);
-
-            if ($referencedTable === $tableName) {
-                // 2. Por cada tabla que usa esta columna, relanzamos el comando de la FK
+            if ($this->guessReferencedTable($column) === $tableName) {
                 foreach ($column->tables as $tableToFix) {
+                    // Solo si la tabla ya existe en el destino
+                    if (!$targetShema->hasTable($tableToFix->target_table)) continue;
 
-                    // OPCIONAL: Verificar si la tabla existe antes de intentar fixearla
-                    // para evitar errores si la tabla dependiente aún no se ha creado nunca.
+                    $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $tableToFix) {
+                        $colName = $column->parameters[0];
 
-                    $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $referencedTable) {
-                        $colName = $column->parameters[0] ?? null;
-                        if (!$colName) return;
+                        // Extraemos el modificador 'constrained' original
+                        $constrainedModifier = collect($column->modifiers)->firstWhere('method', 'constrained');
+                        $originalParams = is_array($constrainedModifier) ? ($constrainedModifier['parameters'] ?? []) : [];
 
-                        // Re-aplicamos la constraint.
-                        // Laravel detectará que la columna ya existe y solo añadirá la FK.
-                        $blueprint->foreign($colName)
-                            ->references('id') // Asumimos id por convención o según tu lógica
-                            ->on($referencedTable)
-                            ->cascadeOnDelete(); // O la lógica que prefieras
+                        // Aplicamos el nombre corto (o el del usuario)
+                        $finalParams = $this->applyShortName($tableToFix->target_table, $colName, 'constrained', $originalParams);
+
+                        // Re-creamos la clave foránea
+                        // $finalParams[0] es la tabla, [1] la columna referenciada, [2] el nombre del índice
+                        $blueprint->foreign($colName, $finalParams[2])
+                            ->references($finalParams[1] ?? 'id')
+                            ->on($finalParams[0] ?? $this->guessReferencedTable($column))
+                            ->cascadeOnDelete();
                     });
                 }
             }

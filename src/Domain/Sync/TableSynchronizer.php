@@ -63,8 +63,10 @@ class TableSynchronizer
             $this->schemaBuilder->create($blueprint, $table);
         });
 
-        // 3. Reconstrucción de FKs externas
-        $this->rebuildDependentForeignKeys($targetShema, $table);
+        // 3. Reconstrucción CONDICIONAL de FKs externas
+        if ($this->driverDestroysForeignKeys($targetConnection)) {
+            $this->rebuildDependentForeignKeys($targetShema, $table);
+        }
 
         // 4. Copia de datos
         return $this->dataCopier->copy($connection, $table);
@@ -91,8 +93,10 @@ class TableSynchronizer
             $this->schemaBuilder->create($blueprint, $table);
         });
 
-        // 4. Reconstrucción de FKs externas
-        $this->rebuildDependentForeignKeys($targetShema, $table);
+        // 4. Reconstrucción CONDICIONAL de FKs externas
+        if ($this->driverDestroysForeignKeys($targetConnection)) {
+            $this->rebuildDependentForeignKeys($targetShema, $table);
+        }
 
         try {
             // 5. Copiar datos a la temporal
@@ -251,6 +255,18 @@ class TableSynchronizer
             // El resultado del select es el comando SQL completo
             $connection->statement(current((array)$constraint));
         }
+    }
+
+    /**
+     * Determina si el driver de destino elimina físicamente las claves foráneas al eliminar la tabla.
+     * Esto es importante para decidir si necesitamos reconstruir las FKs dependientes.
+     */
+    protected function driverDestroysForeignKeys(Connection $connection): bool
+    {
+        $driver = $connection->getDriverName();
+
+        // Oracle, Postgres y SQL Server eliminan o requieren eliminar las constraints físicamente
+        return in_array($driver, ['oracle', 'oci8', 'pgsql', 'sqlsrv']);
     }
 
     /**

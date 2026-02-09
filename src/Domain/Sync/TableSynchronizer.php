@@ -288,12 +288,15 @@ class TableSynchronizer
             ->get();
 
         foreach ($dependentColumns as $column) {
-            if ($this->guessReferencedTable($column) === $tableName) {
+
+            $referencedTable = $this->guessReferencedTable($column);
+
+            if ($referencedTable === $tableName) {
                 foreach ($column->tables as $tableToFix) {
                     // Solo si la tabla ya existe en el destino
                     if (! $targetShema->hasTable($tableToFix->target_table)) continue;
 
-                    $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $tableToFix) {
+                    $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $tableToFix, $referencedTable) {
                         $colName = $column->parameters[0];
 
                         // Extraemos el modificador 'constrained' original
@@ -307,7 +310,7 @@ class TableSynchronizer
                         // $finalParams[0] es la tabla, [1] la columna referenciada, [2] el nombre del índice
                         $blueprint->foreign($colName, $finalParams[2])
                             ->references($finalParams[1] ?? 'id')
-                            ->on($finalParams[0] ?? $this->guessReferencedTable($column))
+                            ->on($finalParams[0] ?? $referencedTable)
                             ->cascadeOnDelete();
                     });
                 }

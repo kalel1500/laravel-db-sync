@@ -187,7 +187,7 @@ class TableSynchronizer
     /**
      * Elimina una tabla de forma segura rompiendo restricciones de integridad.
      */
-    public function forceDropTableIfExists(Connection $connection, string $tableName): void
+    protected function forceDropTableIfExists(Connection $connection, string $tableName): void
     {
         $schema = $connection->getSchemaBuilder();
         $driver = $connection->getDriverName();

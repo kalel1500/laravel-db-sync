@@ -101,6 +101,8 @@ Example columns for `users` table:
 | 2  | 1        | boolean   | `["is_active"]` | `[{"method": "default", "parameters": [true]}]`             |
 | 2  | 1        | foreignId | `["type_id"]`   | `[{"method": "constrained", "parameters": ["user_types"]}]` |
 
+> Note on modifiers: These can be arrays of strings or objects with the fields `method` and `params` if you need to pass parameters to the modifier. For example, passing the table name in the constrained modifier.
+
 #### `dbsync_column_table`
 
 Example `users` columns:
@@ -158,7 +160,7 @@ Drops the destination table and recreates it. Downtime occurs during the data in
 
 * Data is unavailable during the sync
 
-Used when: `use_temporal_table = false`
+Used when: `dbsync_tables.use_temporal_table = false`
 
 ---
 
@@ -180,7 +182,7 @@ Used when: `use_temporal_table = false`
 
 * It does not support self-referential fks
 
-Used when: `use_temporal_table = true`
+Used when: `dbsync_tables.use_temporal_table = true`
 
 ---
 
@@ -190,13 +192,13 @@ Used when: `use_temporal_table = true`
 
 The `temporal_table` strategy is not available if a table has self-referential foreign keys. For example, if the `comments` table has the foreign key `comment_id`.
 * You must set `self_referencing = true` in the `dbsync_columns` record.
-* The system will automatically fallback to the `Drop & Recreate` strategy for that table.
-* If you set the `use_temporal_table` and `self_referencing` fields to `true`, the synchronization will throw an error.
+* Otherwise, the system will attempt to check the table name based on the column data to detect if it is a self-referential foreign key.
+* If it is detected as a self-referencing foreign key (either automatically or by the `self_referencing` field) and the use_temporal_table field is `true`, the synchronization will throw an error.
 
 ### 2. Forbidden Methods in Columns
 
 In `dbsync_columns`, the method field must only contain data types (_string_, _integer_, etc.).
-* Do not use `primary`, `unique`, `index`, or foreign as a `method`.
+* Do not use `primary`, `unique`, `index`, or `foreign` as a `method`.
 * Use modifiers for single-column constraints or the `dbsync_tables` fields for composite constraints.
 
 ---
@@ -236,7 +238,7 @@ Defines **what to sync and how**.
 
 > The `primary_key`, `unique_keys`, and `indexes` fields are only required when using composite keys. Otherwise, they must be defined in the `modifiers` field of the `dbsync_columns` table.
 > 
-> #### IMPORTANT: The format of these fields is an "array of arrays". Otherwise, the execution will throw an error.
+> #### IMPORTANT: The format of these fields (`unique_keys`, and `indexes`) is an "array of arrays". Otherwise, the execution will throw an error.
 
 ---
 
@@ -244,14 +246,14 @@ Defines **what to sync and how**.
 
 Defines **table structure using Laravel schema semantics**.
 
-| Field            | Description                                                                                                                             | Type     | Example                                                                                    |
-|------------------|-----------------------------------------------------------------------------------------------------------------------------------------|----------|--------------------------------------------------------------------------------------------|
-| method           | Blueprint method                                                                                                                        | (string) | _string_, _integer_, _decimal_, _foreignId_, _etc_.                                        |
-| parameters       | Method parameters                                                                                                                       | (array)  | `["name", 100]`, `["user_id"]`, _etc_.                                                     |
-| modifiers        | Column modifiers                                                                                                                        | (array)  | `["nullable", "unique"]`, `[{"method": "constrained", "parameters": ["user_id"]}]`, _etc_. |
-| self_referencing | Indicates whether the foreign key references the table itself. For example, `comment_id` in `comments`.                                 | (bool)   | _true_                                                                                     |
-| case_transform   | Indicate whether copying the data will convert it to uppercase or lowercase.                                                            | (string) | _upper_ \| _lower_                                                                         |
-| code             | This column does nothing during synchronization. It's only there to help populate the `dbsync_column_table` table with IDs more easily. | (string) | _user1_                                                                                    |
+| Field            | Description                                                                                                                             | Type     | Example                                                                                        |
+|------------------|-----------------------------------------------------------------------------------------------------------------------------------------|----------|------------------------------------------------------------------------------------------------|
+| method           | Blueprint method                                                                                                                        | (string) | _string_, _integer_, _decimal_, _foreignId_, _etc_.                                            |
+| parameters       | Method parameters                                                                                                                       | (array)  | `["name", 100]` \|\| `["user_id"]`, _etc_.                                                     |
+| modifiers        | Column modifiers                                                                                                                        | (array)  | `["nullable", "unique"]` \|\| `[{"method": "constrained", "parameters": ["user_id"]}]`, _etc_. |
+| self_referencing | Indicates whether the foreign key references the table itself. For example, `comment_id` in `comments`.                                 | (bool)   | _true_                                                                                         |
+| case_transform   | Indicate whether copying the data will convert it to uppercase or lowercase.                                                            | (string) | _upper_ \| _lower_                                                                             |
+| code             | This column does nothing during synchronization. It's only there to help populate the `dbsync_column_table` table with IDs more easily. | (string) | _user1_                                                                                        |
 
 ---
 

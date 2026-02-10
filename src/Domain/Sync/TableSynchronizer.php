@@ -134,50 +134,44 @@ class TableSynchronizer
                 continue;
             }
 
+            // 1. Prioridad absoluta: El flag explícito de la base de datos
             if ($column->self_referencing) {
                 return true;
             }
 
-            $parameters = $column->parameters ?? [];
-            $modifiers  = $column->modifiers ?? [];
-
-            // Nombre de la columna FK (foreignId('comment_id'))
-            $columnName = $parameters[0] ?? null;
-
-            // Si no se especifica no hacer nada y dejar que falle luego al crear la tabla
+            $columnName = $column->parameters[0] ?? null;
             if (! $columnName) {
                 continue;
             }
 
-            foreach ($modifiers as $modifier) {
-                // Normalizamos modifier a array
-                if (is_string($modifier)) {
-                    $modifier = ['method' => $modifier];
-                }
+            // Buscamos el modificador 'constrained'
+            $constrained = collect($column->modifiers)->first(function ($modifier) {
+                $method = is_string($modifier) ? $modifier : ($modifier['method'] ?? '');
+                return $method === 'constrained';
+            });
 
-                if ($modifier['method'] !== 'constrained') {
-                    continue;
-                }
+            if (! $constrained) {
+                continue;
+            }
 
-                // Si constrained tiene parámetros, NO es implícita → no es problema
-                $constrainedParameters = $modifier['parameters'] ?? [];
-
-                if (! empty($constrainedParameters)) {
-                    continue;
-                }
-
-                /**
-                 * constrained() sin parámetros:
-                 * Laravel infiere la tabla desde el nombre de la columna
-                 * Ej: comment_id -> comments
-                 */
-                $base = str($columnName)->replaceLast('_id', '');
-                if (
-                    $targetTable === $base->plural()->toString() ||
-                    $targetTable === $base->singular()->toString()
-                ) {
+            // 2. Prioridad media: Si el usuario especificó la tabla en ->constrained('tasks')
+            $constrainedParams = is_array($constrained) ? ($constrained['parameters'] ?? []) : [];
+            if (! empty($constrainedParams) && isset($constrainedParams[0])) {
+                if ($constrainedParams[0] === $targetTable) {
                     return true;
                 }
+                // Si especificó una tabla y NO es la actual, ya sabemos que no es autorreferencial
+                continue;
+            }
+
+            // 3. Prioridad baja (Laravel implícito): Adivinar por nombre de columna
+            // Ej: 'parent_id' -> 'parent' -> 'parents'
+            $base = str($columnName)->replaceLast('_id', '');
+            if (
+                $targetTable === $base->plural()->toString() ||
+                $targetTable === $base->singular()->toString()
+            ) {
+                return true;
             }
         }
 

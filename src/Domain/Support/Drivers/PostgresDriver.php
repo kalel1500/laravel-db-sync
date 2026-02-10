@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Thehouseofel\Dbsync\Domain\Support\Drivers;
+
+class PostgresDriver extends BaseDriver
+{
+    public function forceDrop(string $table): void
+    {
+        $tableNameRaw = $this->getTableFullName($table);
+
+        // CASCADE elimina FKs, vistas y otros objetos dependientes
+        $this->connection->statement("DROP TABLE IF EXISTS {$tableNameRaw} CASCADE");
+    }
+}

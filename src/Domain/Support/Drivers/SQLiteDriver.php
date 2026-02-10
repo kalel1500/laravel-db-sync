@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Thehouseofel\Dbsync\Domain\Support\Drivers;
+
+class SQLiteDriver extends BaseDriver
+{
+    public function forceDrop(string $table): void
+    {
+        $schema = $this->connection->getSchemaBuilder();
+
+        // SQLite requiere PRAGMA para ignorar las FKs totalmente
+        $this->connection->statement('PRAGMA foreign_keys = OFF');
+        $schema->dropIfExists($table);
+        $this->connection->statement('PRAGMA foreign_keys = ON');
+    }
+}

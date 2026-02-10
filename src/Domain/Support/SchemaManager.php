@@ -29,7 +29,7 @@ class SchemaManager
     {
         $schema              = $this->connection->getSchemaBuilder();
         $driver              = $this->connection->getDriverName();
-        $prefix              = $this->connection->getConfig('prefix') ?? ''; // $connection->getTablePrefix()
+        $prefix              = $this->connection->getTablePrefix();
         $tableNameWithPrefix = $prefix . $table;
 
         if (! $schema->hasTable($table)) {

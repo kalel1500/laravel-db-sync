@@ -298,20 +298,33 @@ class TableSynchronizer
 
                 $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $tableToFix, $referencedTable) {
                     $colName = $column->parameters[0];
+                    $modifiers = collect($column->modifiers);
 
-                    // Extraemos el modificador 'constrained' original
-                    $constrainedModifier = collect($column->modifiers)->firstWhere('method', 'constrained');
-                    $originalParams      = is_array($constrainedModifier) ? ($constrainedModifier['parameters'] ?? []) : [];
+                    // 1. Localizar la posición del 'constrained'
+                    $constrainedIndex = $modifiers->search(fn($m) => (is_array($m) ? $m['method'] : $m) === 'constrained');
 
-                    // Aplicamos el nombre corto (o el del usuario)
+                    // 2. Extraer el modificador para los parámetros de la tabla/columna
+                    $constrainedModifier = $modifiers->get($constrainedIndex);
+                    $originalParams = is_array($constrainedModifier) ? ($constrainedModifier['parameters'] ?? []) : [];
+
+                    // 3. Aplicar nombre corto/personalizado
                     $finalParams = $this->applyShortName($tableToFix->target_table, $colName, 'constrained', $originalParams);
 
-                    // Re-creamos la clave foránea
-                    // $finalParams[0] es la tabla, [1] la columna referenciada, [2] el nombre del índice
-                    $blueprint->foreign($colName, $finalParams[2])
+                    // 4. Iniciar definición de la FK
+                    $foreign = $blueprint->foreign($colName, $finalParams[2])
                         ->references($finalParams[1] ?? 'id')
-                        ->on($finalParams[0] ?? $referencedTable)
-                        ->cascadeOnDelete();
+                        ->on($finalParams[0] ?? $referencedTable);
+
+                    // 5. Aplicar SOLO los modificadores que vienen DESPUÉS del constrained
+                    $modifiers->slice($constrainedIndex + 1)->each(function ($modifier) use ($foreign) {
+                        $method = is_array($modifier) ? $modifier['method'] : $modifier;
+                        $params = is_array($modifier) ? ($modifier['parameters'] ?? []) : [];
+
+                        // Ahora sí, ejecutamos con seguridad solo lo que el usuario encadenó a la relación
+                        if (method_exists($foreign, $method)) {
+                            $foreign->{$method}(...$params);
+                        }
+                    });
                 });
             }
         }

@@ -291,6 +291,49 @@ This makes the process safe for long-running and large imports.
 
 ---
 
+## Schema Utilities
+
+This package provides a `DbsyncSchema` facade, allowing you to perform structural operations safely across different database engines by automatically handling foreign key constraints and driver-specific behaviors.
+
+### Basic Usage
+
+```php
+use Thehouseofel\Dbsync\Facades\DbsyncSchema;
+
+// Safely drop a table (handles CASCADE in Oracle/Postgres/SQL Server)
+DbsyncSchema::forceDrop('users');
+
+// Truncate one or multiple tables and reset auto-incrementing IDs/Sequences
+DbsyncSchema::truncate(['users', 'profiles', 'posts']);
+```
+
+### Working with Connections
+
+If you are working with multiple databases, you can switch the connection fluently:
+
+```php
+use Thehouseofel\Dbsync\Facades\DbsyncSchema;
+
+DbsyncSchema::connection('oracle_external')->forceDrop('legacy_table');
+```
+
+### Important Note on Truncate & Foreign Keys
+
+When truncating tables with active relationships, you must include all related tables in the same array.
+
+The `truncate` method disables foreign key constraints before the process and re-enables them after all specified tables have been cleared. If you truncate a child table but leave data in the parent table (or vice-versa), the database will throw an error when re-enabling constraints due to referential integrity violations.
+* Correct: `DbsyncSchema::truncate(['users', 'comments'])`; (Both sides of the FK are cleared).
+* Incorrect: `DbsyncSchema::truncate(['comments'])`; (If users table still has data, re-enabling keys may fail).
+
+### Supported Methods
+
+| Method                                       | Description                                                                                                                                                             |
+|----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `forceDrop(string $table)`                   | Drops the table ignoring integrity constraints. It uses `CASCADE CONSTRAINTS` in _Oracle_, **CASCADE** in _PostgreSQL_, and manual foreign key cleanup in _SQL Server_. |
+| `truncate(array $tables)`                    | Vacuums the specified tables and resets identity counters. It manages the disabling/enabling of constraints globally for the provided set of tables.                    |
+| `connection(string\|Connection $connection)` | Sets the database connection for the subsequent operations.                                                                                                             |
+
+
 ## License
 
 laravel-db-sync is open-sourced software licensed under the [GPL-3.0 license](LICENSE).

@@ -24,4 +24,19 @@ class SqlServerDriver extends BaseDriver
 
         $schema->dropIfExists($table);
     }
+
+    /*public function truncate(string $table, string $column = 'id'): void
+    {
+        $tableNameRaw = $this->getTableFullName($table);
+
+        // SQL Server: TRUNCATE no funciona si la tabla es referenciada por una FK
+        // aunque la otra tabla esté vacía. Hay que usar DELETE si hay FKs.
+        try {
+            $this->connection->statement("TRUNCATE TABLE [{$tableNameRaw}]");
+        } catch (\Exception $e) {
+            $this->connection->statement("DELETE FROM [{$tableNameRaw}]");
+            // Reseteamos el SEED del IDENTITY manualmente
+            $this->connection->statement("DBCC CHECKIDENT ('[{$tableNameRaw}]', RESEED, 0)");
+        }
+    }*/
 }

@@ -26,4 +26,9 @@ abstract class BaseDriver implements SchemaDriver
         $schema->dropIfExists($table);
         $schema->enableForeignKeyConstraints();
     }
+
+    public function truncate(string $table, string $column = 'id'): void
+    {
+        $this->connection->table($table)->truncate();
+    }
 }

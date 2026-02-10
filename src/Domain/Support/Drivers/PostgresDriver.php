@@ -13,4 +13,10 @@ class PostgresDriver extends BaseDriver
         // CASCADE elimina FKs, vistas y otros objetos dependientes
         $this->connection->statement("DROP TABLE IF EXISTS {$tableNameRaw} CASCADE");
     }
+
+    /*public function truncate(string $table, string $column = 'id'): void
+    {
+        $tableNameRaw = $this->getTableFullName($table);
+        $this->connection->statement("TRUNCATE TABLE {$tableNameRaw} RESTART IDENTITY CASCADE");
+    }*/
 }

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Thehouseofel\Dbsync\Domain\Shema;
 
+use Illuminate\Database\Connection;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Schema\Builder;
+use Illuminate\Support\Str;
 use Thehouseofel\Dbsync\Domain\Traits\HasShortNames;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncColumn;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
@@ -96,6 +99,244 @@ class TableSchemaBuilder
             $name = $this->generateShortName($blueprint->getTable(), implode('_', $columns), 'idx');
             $blueprint->index($columns, $name);
         }
+    }
+
+
+    // Limpieza
+
+    /**
+     * Elimina una tabla de forma segura rompiendo restricciones de integridad.
+     */
+    public function forceDropTableIfExists(Connection $connection, string $tableName): void
+    {
+        $schema = $connection->getSchemaBuilder();
+        $driver = $connection->getDriverName();
+
+        // Obtenemos el nombre con el prefijo configurado
+        $prefix              = $connection->getConfig('prefix') ?? ''; // $connection->getTablePrefix()
+        $tableNameWithPrefix = $prefix . $tableName;
+
+        switch ($driver) {
+            case 'oci8':
+            case 'oracle':
+                // Obtener el nombre en mayúsculas (Oracle es case-sensitive en el diccionario)
+                $upperTable = strtoupper($tableNameWithPrefix);
+
+                // Comprobar si la tabla existe en user_tables
+                $tableExists = $connection->selectOne(
+                    "SELECT count(*) as total FROM user_tables WHERE table_name = ?",
+                    [$upperTable]
+                );
+
+                if ($tableExists->total > 0) {
+                    // CASCADE CONSTRAINTS elimina las FKs que apuntan a esta tabla
+                    $connection->statement("DROP TABLE {$upperTable} CASCADE CONSTRAINTS");
+                }
+                break;
+
+            case 'pgsql':
+                // CASCADE elimina FKs, vistas y otros objetos dependientes
+                $connection->statement("DROP TABLE IF EXISTS {$tableNameWithPrefix} CASCADE");
+                break;
+
+            case 'sqlsrv':
+                // SQL Server no tiene CASCADE en el DROP. Hay que borrar las FKs manualmente primero.
+                $this->dropSqlServerForeignKeys($connection, $tableNameWithPrefix);
+                $schema->dropIfExists($tableName);
+                break;
+
+            case 'sqlite':
+                // SQLite requiere PRAGMA para ignorar las FKs totalmente
+                $connection->statement('PRAGMA foreign_keys = OFF');
+                $schema->dropIfExists($tableName);
+                $connection->statement('PRAGMA foreign_keys = ON');
+                break;
+
+            default: // mysql | mariadb |
+                $schema->disableForeignKeyConstraints();
+                $schema->dropIfExists($tableName);
+                $schema->enableForeignKeyConstraints();
+                break;
+        }
+    }
+
+    /**
+     * Helper específico para SQL Server (el más complejo en este caso)
+     */
+    protected function dropSqlServerForeignKeys(Connection $connection, string $tableName): void
+    {
+        $sql = "SELECT 'ALTER TABLE ' + OBJECT_SCHEMA_NAME(parent_object_id) + '.[' + OBJECT_NAME(parent_object_id) + '] DROP CONSTRAINT [' + name + ']'
+            FROM sys.foreign_keys
+            WHERE referenced_object_id = OBJECT_ID(?)";
+
+        $constraints = $connection->select($sql, [$tableName]);
+
+        foreach ($constraints as $constraint) {
+            // El resultado del select es el comando SQL completo
+            $connection->statement(current((array)$constraint));
+        }
+    }
+
+
+    // Análisis
+
+    /**
+     * Determina si la tabla tiene claves foráneas que apuntan a sí misma.
+     * Esto es crucial para decidir si podemos usar la estrategia de tabla temporal o no.
+     */
+    public function hasSelfReferencingForeignKey(DbsyncTable $table): bool
+    {
+        $targetTable = $table->target_table;
+
+        foreach ($table->columns as $column) {
+            if ($column->method !== 'foreignId') {
+                continue;
+            }
+
+            // 1. Prioridad absoluta: El flag explícito de la base de datos
+            if ($column->self_referencing) {
+                return true;
+            }
+
+            $columnName = $column->parameters[0] ?? null;
+            if (! $columnName) {
+                continue;
+            }
+
+            // Buscamos el modificador 'constrained'
+            $constrained = collect($column->modifiers)->first(function ($modifier) {
+                $method = is_string($modifier) ? $modifier : ($modifier['method'] ?? '');
+                return $method === 'constrained';
+            });
+
+            if (! $constrained) {
+                continue;
+            }
+
+            // 2. Prioridad media: Si el usuario especificó la tabla en ->constrained('tasks')
+            $constrainedParams = is_array($constrained) ? ($constrained['parameters'] ?? []) : [];
+            if (! empty($constrainedParams) && isset($constrainedParams[0])) {
+                if ($constrainedParams[0] === $targetTable) {
+                    return true;
+                }
+                // Si especificó una tabla y NO es la actual, ya sabemos que no es autorreferencial
+                continue;
+            }
+
+            // 3. Prioridad baja (Laravel implícito): Adivinar por nombre de columna
+            // Ej: 'parent_id' -> 'parent' -> 'parents'
+            $base = str($columnName)->replaceLast('_id', '');
+            if (
+                $targetTable === $base->plural()->toString() ||
+                $targetTable === $base->singular()->toString()
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determina si el driver de destino elimina físicamente las claves foráneas al eliminar la tabla.
+     * Esto es importante para decidir si necesitamos reconstruir las FKs dependientes.
+     */
+    public function driverDestroysForeignKeys(Connection $connection): bool
+    {
+        $driver = $connection->getDriverName();
+
+        // Oracle, Postgres y SQL Server eliminan o requieren eliminar las constraints físicamente
+        return in_array($driver, ['oracle', 'oci8', 'pgsql', 'sqlsrv']);
+    }
+
+
+    // Reparación
+
+    /**
+     * Busca y recrea las claves foráneas de otras tablas que apuntan a la tabla recién sincronizada.
+     */
+    public function rebuildDependentForeignKeys(Builder $targetShema, DbsyncTable $syncedTable): void
+    {
+        $tableName = $syncedTable->target_table;
+
+        // Buscar columnas de otras tablas que apunten a esta tabla
+        $potentialColumns = DbsyncColumn::with('tables')
+            ->whereHas('tables', function ($query) use ($syncedTable) {
+                $query->where('dbsync_tables.id', '!=', $syncedTable->id);
+            })
+            ->where(function ($query) {
+                $query->where('method', 'foreignId')
+                    ->orWhere('modifiers', 'LIKE', '%constrained%');
+            })
+            ->get();
+
+        foreach ($potentialColumns as $column) {
+            // Iteramos las tablas que usan esta columna
+            foreach ($column->tables as $tableToFix) {
+
+                // Saltamos la tabla que acabamos de crear, ya que tiene las FKs bien creadas (en teoria ya no vienen en la query)
+                if ($tableToFix->id === $syncedTable->id) continue;
+
+                $referencedTable = $this->guessReferencedTable($column);
+
+                // Validar que la FK pertenece a la tabla que acabamos de sincronizar (y no a otra tabla que tenga una columna con el mismo nombre)
+                if ($referencedTable !== $tableName) continue;
+
+                // Crear FKs SOLO si existe la tabla referenciada
+                if (! $targetShema->hasTable($tableToFix->target_table)) continue;
+
+                $targetShema->table($tableToFix->target_table, function (Blueprint $blueprint) use ($column, $tableToFix, $referencedTable) {
+                    $colName = $column->parameters[0];
+                    $modifiers = collect($column->modifiers);
+
+                    // 1. Localizar la posición del 'constrained'
+                    $constrainedIndex = $modifiers->search(fn($m) => (is_array($m) ? $m['method'] : $m) === 'constrained');
+
+                    // 2. Extraer el modificador para los parámetros de la tabla/columna
+                    $constrainedModifier = $modifiers->get($constrainedIndex);
+                    $originalParams = is_array($constrainedModifier) ? ($constrainedModifier['parameters'] ?? []) : [];
+
+                    // 3. Aplicar nombre corto/personalizado
+                    $finalParams = $this->applyShortName($tableToFix->target_table, $colName, 'constrained', $originalParams);
+
+                    // 4. Iniciar definición de la FK
+                    $foreign = $blueprint->foreign($colName, $finalParams[2])
+                        ->references($finalParams[1] ?? 'id')
+                        ->on($finalParams[0] ?? $referencedTable);
+
+                    // 5. Aplicar SOLO los modificadores que vienen DESPUÉS del constrained
+                    $modifiers->slice($constrainedIndex + 1)->each(function ($modifier) use ($foreign) {
+                        $method = is_array($modifier) ? $modifier['method'] : $modifier;
+                        $params = is_array($modifier) ? ($modifier['parameters'] ?? []) : [];
+
+                        // Ahora sí, ejecutamos con seguridad solo lo que el usuario encadenó a la relación
+                        if (method_exists($foreign, $method)) {
+                            $foreign->{$method}(...$params);
+                        }
+                    });
+                });
+            }
+        }
+    }
+
+    /**
+     * Lógica para obtener el nombre de la tabla referenciada
+     */
+    protected function guessReferencedTable(DbsyncColumn $column): ?string
+    {
+        $modifiers = $column->modifiers ?? [];
+
+        foreach ($modifiers as $modifier) {
+            if (is_array($modifier) && $modifier['method'] === 'constrained') {
+                // Si tiene parámetro en constrained: constrained('users')
+                if (! empty($modifier['parameters'][0])) {
+                    return $modifier['parameters'][0];
+                }
+            }
+        }
+
+        // Si no hay parámetro en constrained, inferimos por el nombre de la columna: user_id -> users
+        return Str::plural(Str::before($column->parameters[0] ?? '', '_id'));
     }
 }
 

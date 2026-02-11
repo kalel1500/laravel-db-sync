@@ -96,10 +96,11 @@ class SchemaManager
         try {
             $schema->enableForeignKeyConstraints();
         } catch (\Throwable $e) {
+            $tableNames = implode(', ', array_map(fn($t) => is_string($t) ? $t : $t['name'], $tables));
             throw new \RuntimeException(
                 "CRITICAL: Constraints could not be re-enabled after truncate. " .
                 "Your database schema might be inconsistent. Ensure you included all related tables: " .
-                implode(', ', $tables) . ". Error: " . $e->getMessage()
+                "$tableNames. Error: {$e->getMessage()}"
             );
         }
     }

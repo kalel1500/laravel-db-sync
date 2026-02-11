@@ -6,7 +6,6 @@ namespace Thehouseofel\Dbsync\Domain\Support;
 
 use Illuminate\Database\Connection;
 use Illuminate\Database\Schema\Builder;
-use Illuminate\Support\Facades\DB;
 use Thehouseofel\Dbsync\Domain\Contracts\SchemaDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\MariaDbDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\MySqlDriver;
@@ -17,7 +16,6 @@ use Thehouseofel\Dbsync\Domain\Support\Drivers\SqlServerDriver;
 
 class SchemaManager
 {
-    protected Connection    $connection;
     protected ?SchemaDriver $driverInstance = null;
 
     protected array $driversMap = [
@@ -30,9 +28,10 @@ class SchemaManager
         'oci8'    => OracleDriver::class,
     ];
 
-    public function __construct()
+    public function __construct(
+        protected Connection $connection
+    )
     {
-        $this->connection = DB::connection(config('database.default'));
     }
 
     protected function driver(): SchemaDriver
@@ -42,15 +41,9 @@ class SchemaManager
         }
 
         $name  = $this->connection->getDriverName();
-        $class = $this->driversMap[$name] ?? throw new \RuntimeException("Driver $name no soportado para SchemaManager.");
+        $class = $this->driversMap[$name] ?? throw new \RuntimeException("Driver $name no soportado.");
 
         return $this->driverInstance = new $class($this->connection);
-    }
-
-    public function connection(Connection|string $connection): static
-    {
-        $this->connection = is_string($connection) ? DB::connection($connection) : $connection;
-        return $this;
     }
 
     /**

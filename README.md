@@ -334,6 +334,24 @@ The `truncate` method disables foreign key constraints before the process and re
 | `connection(string\|Connection $connection)` | Sets the database connection for the subsequent operations.                                                                                                             |
 
 
+## Driver Compatibility
+
+The package is currently in **Beta**. While the logic is implemented for all major drivers, the level of testing varies:
+
+| Driver              | Status   | Notes                                                          |
+|:--------------------|:---------|:---------------------------------------------------------------|
+| **MySQL / MariaDB** | ✅ Tested | Fully functional.                                              |
+| **SQLite**          | ✅ Tested | Fully functional.                                              |
+| **Oracle (12c+)**   | ✅ Tested | Verified using Identity Columns (standard since 12c).          |
+| **Oracle (Legacy)** | ⚠️ Beta  | Logic for manual Sequences implemented but not fully verified. |
+| **PostgreSQL**      | ⚠️ Beta  | Logic implemented but pending full integration tests.          |
+| **SQL Server**      | ⚠️ Beta  | Logic implemented but pending full integration tests.          |
+
+> **Beta Disclaimer:** While the core logic is implemented for all drivers, please proceed with caution when using this package in production environments with `Postgres`, `SQL Server`, or `Legacy Oracle Sequences`, as they are still undergoing full verification. 
+> We highly encourage testing in these environments! If you encounter any issues or wish to contribute, please open an issue or submit a PR.
+
+---
+
 ## License
 
 laravel-db-sync is open-sourced software licensed under the [GPL-3.0 license](LICENSE).

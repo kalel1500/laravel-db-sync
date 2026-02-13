@@ -1,6 +1,35 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.0-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.1-beta.0...master)
+
+## [v0.3.1-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.0-beta.0...v0.3.1-beta.0) - 2026-02-10
+
+### Added
+
+* **Gestión de Ciclo de Vida de Constraints:** Implementación de un sistema de regeneración automática de Foreign Keys (`rebuildDependentForeignKeys` en `TableSchemaBuilder`). Este mecanismo detecta qué claves externas apuntaban a la tabla sincronizada y las reconstruye tras el proceso de carga (ya que este realiza un borrado en cascada).
+  * **Inteligencia por driver:** Solo actúa en motores con borrado destructivo (_Oracle_, _Postgres_, _SQL Server_), optimizando el rendimiento en _MySQL/MariaDB_.
+  * **Garantía en estrategia temporal:** La reconstrucción se ejecuta solo después del renombre final de la tabla para asegurar que las claves apunten al nombre real y no al temporal.
+* **Nueva clase `SchemaManager`:** Se expone una herramienta pública para realizar operaciones de estructura de forma segura entre diferentes motores de base de datos.
+  * **Arquitectura Multi-driver:** Implementación basada en el patrón Strategy con clases especializadas por motor (_Oracle_, _Postgres_, _SQL Server_, etc.), garantizando una gestión de esquema aislada y mantenible.
+  * **Método `forceDrop`:** Realiza un borrado seguro de tablas con dependencias activas (usando `CASCADE` o limpieza manual según el driver). Respeta automáticamente el prefijo de tablas configurado en Laravel.
+  * **Método `truncate`:** Vacía la tabla y resetea los contadores de ID autoincrementales (Identity/Sequence) de forma específica para cada motor de base de datos.
+  * **Nueva Fachada:** Se ha creado la Fachada `DbsyncSchema` que apunta al `SchemaManager` para poder acceder de forma fluida a sus métodos de gestión de esquemas.
+  * **Soporte Multiconexión:** El método `connection()` actúa como un gestor de instancias, permitiendo trabajar con múltiples conexiones simultáneamente de forma segura mediante la Fachada `DbsyncSchema`.
+    * **Arquitectura de Gestión de Instancias:** Implementación basada en el patrón `Factory/Manager`, que garantiza el aislamiento total entre múltiples conexiones. Cada conexión gestionada es inmutable, evitando la persistencia de estado o conflictos entre drivers al operar con distintas bases de datos en la misma ejecución.
+
+
+### Changed
+
+* **(refactor) Reubicación de lógica de esquema:** Se traslada el método `hasSelfReferencingForeignKey` desde `TableSynchronizer` hacia `TableSchemaBuilder`. Este cambio consolida toda la responsabilidad de análisis y validación de estructura de tablas en una única clase especializada.
+* **(refactor) Centralización de Naming:** Se extrae la lógica de generación de nombres cortos al nuevo Trait `HasShortNames`, asegurando que los índices sean idénticos en la creación y en la reconstrucción.
+* **(refactor) Optimización de Inyección de Dependencias:** El método `sync` ahora gestiona centralmente la `Connection` y el `Builder` de Laravel, mejorando la eficiencia y reduciendo la redundancia de código en las estrategias de sincronización.
+
+### Fixed
+
+* **Borrado Seguro Multi-Driver:** Corrección del error al borrar las tablas, ya que el método `disableForeignKeyConstraints()` de Laravel no es suficiente para eliminar tablas con dependencias activas en _Oracle_, _Postgres_ y _SQL Server_.
+  * Se implementa `DbsyncSchema::forceDrop()` al realizar el borrado de las tablas durante el proceso de sincronización.
+  * **(Mejora vinculada):** Para mitigar la pérdida de claves tras el borrado en cascada, se utiliza el nuevo sistema de reconstrucción de FKs (`rebuildDependentForeignKeys`) que restaura las relaciones de tablas ajenas tras la sincronización.
+* **Precisión en la detección de autorreferencias:** Se corrige `hasSelfReferencingForeignKey` para priorizar el nombre de tabla definido en el modificador `constrained()`, estableciendo un orden de prioridad lógico (Flag BD > Parámetro explícito > Inferencia).
 
 ## [v0.3.0-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.2.0-beta.0...v0.3.0-beta.0) - 2026-02-07
 

@@ -63,13 +63,15 @@ class TableSynchronizer
             $this->schemaBuilder->create($blueprint, $table);
         });
 
-        // 3. Reconstrucción CONDICIONAL de FKs externas
+        // 3. Copia de datos
+        $rows = $this->dataCopier->copy($connection, $table);
+
+        // 4. Reconstrucción CONDICIONAL de FKs externas
         if ($this->schemaBuilder->driverDestroysForeignKeys($targetConnection)) {
             $this->schemaBuilder->rebuildDependentForeignKeys($targetShema, $table);
         }
 
-        // 4. Copia de datos
-        return $this->dataCopier->copy($connection, $table);
+        return $rows;
     }
 
     /**

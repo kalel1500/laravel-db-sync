@@ -186,6 +186,26 @@ Used when: `dbsync_tables.use_temporal_table = true`
 
 ---
 
+## Data Insertion Strategies
+
+The package allows you to control how data is written to the target database via the `dbsync_tables.insert_strategy` field.
+
+| Strategy | Recommendation         | Description                                                                                                                                                 |
+|----------|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| bulk     | Default / 99% of cases | Uses mass inserts. It is the fastest method and works perfectly for almost all scenarios and engines.                                                       |
+| row      | On failure             | Inserts records one by one within a transaction. Use this if a sync fails and you are certain the schema is correct but the data content is causing issues. |
+| auto     | Precautionary          | Use this if you are unsure about the source data length and want the driver to decide the safest path.                                                      |
+
+> **Note on Oracle:** If you encounter `ORA-01790: expression must have same datatype as corresponding expression`, ensure the column is defined as `text` in `dbsync_columns` and the strategy is set to `auto` or `row`.
+
+### How `auto` strategy works:
+
+> There is no "magic" involved. When `insert_strategy` is set to `auto`:
+> 1. For most drivers, it simply executes a `bulk` insert.
+> 2. In `Oracle`, it checks the table definition: if any column uses the `text`, `mediumText`, or `longText` methods, it automatically switches to `row` strategy (individual inserts within a transaction) to ensure compatibility with `CLOB` data and avoid `ORA-01790`.
+
+---
+
 ## Important Constraints
 
 ### 1. Self-Referencing Foreign Keys
@@ -200,6 +220,15 @@ The `temporal_table` strategy is not available if a table has self-referential f
 In `dbsync_columns`, the method field must only contain data types (_string_, _integer_, etc.).
 * Do not use `primary`, `unique`, `index`, or `foreign` as a `method`.
 * Use modifiers for single-column constraints or the `dbsync_tables` fields for composite constraints.
+
+### 3. Oracle Data Types and ORA-01790
+
+When synchronizing to Oracle, you might encounter the following error during the data copy phase:
+`ORA-01790: expression must have same datatype as corresponding expression`
+
+This typically happens when Laravel attempts a bulk insert (`INSERT ALL` or `UNION ALL`) and the source data contains strings that exceed the standard `VARCHAR2` limit (4,000 bytes), causing a mismatch in how Oracle perceives the column type (interpreting some rows as CLOB and others as `VARCHAR2`).
+
+> In these cases, you should select the `row` strategy in `insert_strategy` column for that specific table to ensure each record is inserted correctly.
 
 ---
 
@@ -230,6 +259,7 @@ Defines **what to sync and how**.
 | source_query       | Optional custom SELECT                                                      | (string) | _select..._                 |
 | use_temporal_table | Enables temporal strategy                                                   | (bool)   | _true_                      |
 | batch_size         | Insert chunk size                                                           | (int)    | _500_                       |
+| insert_strategy    | Data insertion method: `bulk`, `row`, or `auto`                             | (string) | _bulk_                      |
 | primary_key        | * Primary key definition                                                    | (array)  | `["user_id", "rol_id"]`     |
 | unique_keys        | * Unique constraints                                                        | (array)  | `[["name", "type"]]`        |
 | indexes            | * Index definitions                                                         | (array)  | `[["name", "description"]]` |

@@ -1,6 +1,23 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.1-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.0-beta.0...master)
+
+## [v0.4.0-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.1-beta.0...v0.4.0-beta.0) - 2026-02-13
+
+### Added
+
+- Nueva columna `insert_strategy` en la tabla `dbsync_tables` para definir cómo se insertan los datos (`bulk`, `row`, `auto`).
+  - Método `insertWithStrategy` en la interfaz `SchemaDriver` y lógica correspondiente en los drivers.
+  - Soporte inteligente en `OracleDriver` para detectar columnas de tipo texto largo y cambiar automáticamente a estrategia de inserción fila a fila para evitar límites del motor (`ORA-01704`).
+
+### Fixed
+
+- Se ha arreglado el error `ORA-01790` en Oracle cuando se intentan sincronizar campos `CLOB` o strings de más de 4000 caracteres en modo masivo.
+  - **(Mejora vinculada):** Para mitigar el error se ha definido la columna `insert_strategy` y asi evitar el insert masivo en Oracle.
+
+### Notas de migración (Breaking Changes Summary)
+
+- (breaking) Se ha modificado la migración de la tabla `dbsync_tables`. Si ya tenías el paquete instalado, deberás añadir manualmente la columna `insert_strategy`
 
 ## [v0.3.1-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.0-beta.0...v0.3.1-beta.0) - 2026-02-10
 

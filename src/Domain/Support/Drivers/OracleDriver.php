@@ -19,7 +19,7 @@ class OracleDriver extends BaseDriver
 
         if ($tableExists->total > 0) {
             // CASCADE CONSTRAINTS elimina las FKs que apuntan a esta tabla
-            $this->connection->statement("DROP TABLE {$upperTable} CASCADE CONSTRAINTS");
+            $this->connection->statement("DROP TABLE {$upperTable} CASCADE CONSTRAINTS PURGE");
         }
     }
 

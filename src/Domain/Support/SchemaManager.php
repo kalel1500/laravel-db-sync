@@ -13,6 +13,7 @@ use Thehouseofel\Dbsync\Domain\Support\Drivers\OracleDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\PostgresDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\SQLiteDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\SqlServerDriver;
+use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
 class SchemaManager
 {
@@ -98,4 +99,8 @@ class SchemaManager
         }
     }
 
+    public function insertWithStrategy(DbsyncTable $table, string $targetTable, array $rows): void
+    {
+        $this->driver()->insertWithStrategy($table, $targetTable, $rows);
+    }
 }

@@ -6,6 +6,7 @@ namespace Thehouseofel\Dbsync\Domain\Support\Drivers;
 
 use Illuminate\Database\Connection;
 use Thehouseofel\Dbsync\Domain\Contracts\SchemaDriver;
+use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
 abstract class BaseDriver implements SchemaDriver
 {
@@ -30,5 +31,37 @@ abstract class BaseDriver implements SchemaDriver
     public function truncate(string $table, string $column = 'id'): void
     {
         $this->connection->table($table)->truncate();
+    }
+
+    public function insertWithStrategy(DbsyncTable $table, string $targetTable, array $rows): void
+    {
+        $strategy = $table->insert_strategy;
+
+        match ($strategy) {
+            'row'   => $this->insertRowByRow($targetTable, $rows),
+            'bulk'  => $this->insertBulk($targetTable, $rows),
+            'auto'  => $this->insertAuto($table, $targetTable, $rows),
+            default => throw new \InvalidArgumentException('Invalid value for the "insert_strategy" column. Allowed values are: "row", "bulk", and "auto".'),
+        };
+    }
+
+    protected function insertBulk(string $targetTable, array $rows): void
+    {
+        $this->connection->table($targetTable)->insert($rows);
+    }
+
+    protected function insertRowByRow(string $targetTable, array $rows): void
+    {
+        $this->connection->transaction(function () use ($targetTable, $rows) {
+            foreach ($rows as $row) {
+                $this->connection->table($targetTable)->insert($row);
+            }
+        });
+    }
+
+    protected function insertAuto(DbsyncTable $table, string $targetTable, array $rows): void
+    {
+        // Por defecto en la mayoría de drivers AUTO = bulk
+        $this->insertBulk($targetTable, $rows);
     }
 }

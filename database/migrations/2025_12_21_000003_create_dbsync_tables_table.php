@@ -20,6 +20,7 @@ return new class extends Migration
             $table->longText('source_query')->nullable();
             $table->boolean('use_temporal_table');
             $table->unsignedInteger('batch_size')->default(1000);
+            $table->string('insert_strategy', 10)->comment('bulk | row | auto');
             $table->json('primary_key')->nullable();
             $table->json('unique_keys')->nullable();
             $table->json('indexes')->nullable();

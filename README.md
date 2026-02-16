@@ -79,11 +79,11 @@ In `config/database.php`:
 
 #### `dbsync_tables`
 
-| id | source_table | target_table | min_records | active | source_query | use_temporal_table | batch_size | primary_key | unique_keys | indexes            | connection_id |
-|----|--------------|--------------|-------------|--------|--------------|--------------------|------------|-------------|-------------|--------------------|---------------|
-| 1  | users        | users        | 300         | true   | null         | true               | 1000       | null        | null        | null               | 1             |
-| 2  | roles        | roles        | 100         | true   | null         | false              | 500        | null        | null        | null               | 1             |
-| 2  | types        | types        | 1           | true   | null         | false              | 500        | null        | null        | [["name", "slug"]] | 1             |
+| id | source_table | target_table | min_records | active | source_query | use_temporal_table | batch_size | insert_row_by_row | primary_key | unique_keys | indexes            | connection_id |
+|----|--------------|--------------|-------------|--------|--------------|--------------------|------------|-------------------|-------------|-------------|--------------------|---------------|
+| 1  | users        | users        | 300         | true   | null         | true               | 1000       | false             | null        | null        | null               | 1             |
+| 2  | roles        | roles        | 100         | true   | null         | false              | 500        | false             | null        | null        | null               | 1             |
+| 2  | types        | types        | 1           | true   | null         | false              | 500        | false             | null        | null        | [["name", "slug"]] | 1             |
 
 > Note on Composite Keys: The `unique_keys` and `indexes` fields must follow an "array of arrays" format: [["col1"], ["col2", "col3"]].
 
@@ -186,6 +186,26 @@ Used when: `dbsync_tables.use_temporal_table = true`
 
 ---
 
+## Data Insertion Mode
+
+By default, the package uses **bulk inserts** for maximum performance.
+This is the fastest and recommended approach in virtually all cases.
+
+However, when synchronizing to **Oracle**, you might encounter specific errors if very large text values are present in `text`, `mediumText`, or `longText` columns.
+
+To handle those edge cases, you can enable row-by-row insertion for a specific table using the `insert_row_by_row` field in `dbsync_tables`.
+
+| Value           | Behavior                                                             |
+|-----------------|----------------------------------------------------------------------|
+| false (default) | Uses bulk inserts (fastest option).                                  |
+| true            | Forces row-by-row insertion inside a transaction (safer but slower). |
+
+> ⚠️ This option should only be enabled if you experience Oracle errors during data insertion.
+>
+> It is not recommended for normal usage because it reduces insertion performance.
+
+---
+
 ## Important Constraints
 
 ### 1. Self-Referencing Foreign Keys
@@ -200,6 +220,33 @@ The `temporal_table` strategy is not available if a table has self-referential f
 In `dbsync_columns`, the method field must only contain data types (_string_, _integer_, etc.).
 * Do not use `primary`, `unique`, `index`, or `foreign` as a `method`.
 * Use modifiers for single-column constraints or the `dbsync_tables` fields for composite constraints.
+
+### 3. Oracle Data Types and ORA-01790
+
+When synchronizing to Oracle, you might encounter the following error during the data copy phase:
+
+```SQL
+ORA-01790: expression must have same datatype as corresponding expression
+-- OR
+ORA-01704: string literal too long
+```
+
+This happens when Laravel generates a bulk insert and Oracle internally interprets some values as `CLOB` while others are treated as `VARCHAR2`, typically when very large text values are involved.
+
+If you are certain that:
+* The schema is correct
+* The affected columns are defined as `text`, `mediumText`, or `longText`
+* The error occurs during the data copy phase
+
+Then you can enable row-by-row insertion for that specific table:
+
+```php
+dbsync_tables.insert_row_by_row = true
+```
+
+This forces each record to be inserted individually inside a transaction, ensuring proper bind variable handling and avoiding Oracle type mismatch issues.
+
+> ⚠️ This setting should only be used when necessary, as it reduces insertion performance compared to bulk inserts.
 
 ---
 
@@ -221,19 +268,20 @@ Defines **source and target Laravel connections**.
 
 Defines **what to sync and how**.
 
-| Field              | Description                                                                 | Type     | Example                     |
-|--------------------|-----------------------------------------------------------------------------|----------|-----------------------------|
-| source_table       | Source table name                                                           | (string) | _user_                      |
-| target_table       | Destination table name                                                      | (string) | _user_                      |
-| min_records        | Minimum number of records required for the sync to be considered successful | (int)    | _1_                         |
-| active             | Enables or disables synchronization for this table                          | (bool)   | _true_                      |
-| source_query       | Optional custom SELECT                                                      | (string) | _select..._                 |
-| use_temporal_table | Enables temporal strategy                                                   | (bool)   | _true_                      |
-| batch_size         | Insert chunk size                                                           | (int)    | _500_                       |
-| primary_key        | * Primary key definition                                                    | (array)  | `["user_id", "rol_id"]`     |
-| unique_keys        | * Unique constraints                                                        | (array)  | `[["name", "type"]]`        |
-| indexes            | * Index definitions                                                         | (array)  | `[["name", "description"]]` |
-| connection_id      | Reference to the connection used by this table                              | (int)    | _1_                         |
+| Field              | Description                                                                                    | Type     | Example                     |
+|--------------------|------------------------------------------------------------------------------------------------|----------|-----------------------------|
+| source_table       | Source table name                                                                              | (string) | _user_                      |
+| target_table       | Destination table name                                                                         | (string) | _user_                      |
+| min_records        | Minimum number of records required for the sync to be considered successful                    | (int)    | _1_                         |
+| active             | Enables or disables synchronization for this table                                             | (bool)   | _true_                      |
+| source_query       | Optional custom SELECT                                                                         | (string) | _select..._                 |
+| use_temporal_table | Enables temporal strategy                                                                      | (bool)   | _true_                      |
+| batch_size         | Insert chunk size                                                                              | (int)    | _500_                       |
+| insert_row_by_row  | Forces row-by-row insertion instead of bulk (use only if needed, mainly for Oracle edge cases) | (bool)   | _false_                     |
+| primary_key        | * Primary key definition                                                                       | (array)  | `["user_id", "rol_id"]`     |
+| unique_keys        | * Unique constraints                                                                           | (array)  | `[["name", "type"]]`        |
+| indexes            | * Index definitions                                                                            | (array)  | `[["name", "description"]]` |
+| connection_id      | Reference to the connection used by this table                                                 | (int)    | _1_                         |
 
 
 > The `primary_key`, `unique_keys`, and `indexes` fields are only required when using composite keys. Otherwise, they must be defined in the `modifiers` field of the `dbsync_columns` table.

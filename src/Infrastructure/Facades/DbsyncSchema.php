@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Thehouseofel\Dbsync\Domain\Support\SchemaConnection connection(\Illuminate\Database\Connection|string|null $connection)
  * @method static void forceDrop(string $table)
  * @method static void truncate(array $tables)
+ * @method static void insert(\Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable $table, string $targetTable, array $rows)
  *
  * @see \Thehouseofel\Dbsync\Domain\Support\SchemaConnection
  */

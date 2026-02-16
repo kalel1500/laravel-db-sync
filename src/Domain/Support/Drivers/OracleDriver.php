@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Thehouseofel\Dbsync\Domain\Support\Drivers;
 
+use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
+
 class OracleDriver extends BaseDriver
 {
+    protected array $hasTextColumns = [];
+
     public function forceDrop(string $table): void
     {
         // Obtener el nombre en mayúsculas (Oracle es case-sensitive en el diccionario)
@@ -49,5 +53,24 @@ class OracleDriver extends BaseDriver
                 $this->connection->statement("CREATE SEQUENCE {$sequenceName} START WITH 1 INCREMENT BY 1 NOCACHE");
             }
         }
+    }
+
+    public function insertAuto(DbsyncTable $table, string $targetTable, array $rows): void
+    {
+        if ($table->insert_row_by_row && $this->hasTextLikeColumns($table)) {
+            $this->insertRowByRow($targetTable, $rows);
+            return;
+        }
+
+        $this->insertBulk($targetTable, $rows);
+    }
+
+    protected function hasTextLikeColumns(DbsyncTable $table): bool
+    {
+        $tableKey = $table->id;
+
+        return $this->hasTextColumns[$tableKey] ??= $table->columns->contains(function ($column) {
+            return in_array($column->method, ['text', 'mediumText', 'longText']);
+        });
     }
 }

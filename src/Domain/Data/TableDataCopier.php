@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Thehouseofel\Dbsync\Domain\Data;
 
 use Illuminate\Support\Facades\DB;
+use Thehouseofel\Dbsync\Infrastructure\Facades\DbsyncSchema;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
@@ -47,27 +48,28 @@ class TableDataCopier
 
         return $rows
             ->chunk($table->batch_size)
-            ->reduce(function (int $total, $chunk) use ($target, $targetTable, $caseTransforms) {
-                $target->table($targetTable)->insert(
-                    $chunk->map(function ($row) use ($caseTransforms) {
-                        $data = (array)$row;
+            ->reduce(function (int $total, $chunk) use ($target, $targetTable, $caseTransforms, $table) {
 
-                        foreach ($caseTransforms as $column => $transform) {
-                            if (
-                                array_key_exists($column, $data) &&
-                                is_string($data[$column])
-                            ) {
-                                $data[$column] = match ($transform) {
-                                    'upper' => mb_strtoupper($data[$column]),
-                                    'lower' => mb_strtolower($data[$column]),
-                                    default => $data[$column],
-                                };
-                            }
+                $preparedRows = $chunk->map(function ($row) use ($caseTransforms) {
+                    $data = (array)$row;
+
+                    foreach ($caseTransforms as $column => $transform) {
+                        if (
+                            array_key_exists($column, $data) &&
+                            is_string($data[$column])
+                        ) {
+                            $data[$column] = match ($transform) {
+                                'upper' => mb_strtoupper($data[$column]),
+                                'lower' => mb_strtolower($data[$column]),
+                                default => $data[$column],
+                            };
                         }
+                    }
 
-                        return $data;
-                    })->all()
-                );
+                    return $data;
+                })->all();
+
+                DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
 
                 return $total + $chunk->count();
             }, 0);

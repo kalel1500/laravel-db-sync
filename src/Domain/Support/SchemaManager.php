@@ -13,6 +13,7 @@ use Thehouseofel\Dbsync\Domain\Support\Drivers\OracleDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\PostgresDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\SQLiteDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\SqlServerDriver;
+use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
 class SchemaManager
 {
@@ -98,4 +99,12 @@ class SchemaManager
         }
     }
 
+    public function insert(DbsyncTable $table, string $targetTable, array $rows): void
+    {
+        if ($table->insert_row_by_row) {
+            $this->driver()->insertAuto($table, $targetTable, $rows);
+        } else {
+            $this->driver()->insertBulk($targetTable, $rows);
+        }
+    }
 }

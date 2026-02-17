@@ -12,6 +12,8 @@ interface SchemaDriver
 
     public function truncate(string $table, string $column = 'id'): void;
 
+    public function syncIdentity(string $table, string $column = 'id'): void;
+
     public function insertBulk(string $targetTable, array $rows): void;
 
     public function insertRowByRow(string $targetTable, array $rows): void;

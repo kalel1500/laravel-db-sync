@@ -24,6 +24,11 @@ abstract class BaseDriver implements SchemaDriver
         return $this->connection->getQueryGrammar()->wrapTable($table);
     }
 
+    protected function wrapColumn(string $column): string
+    {
+        return $this->connection->getQueryGrammar()->wrap($column);
+    }
+
     public function forceDrop(string $table): void
     {
         $schema = $this->connection->getSchemaBuilder();

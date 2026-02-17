@@ -269,5 +269,69 @@ class TableSchemaBuilder
         // Si no hay parámetro en constrained, inferimos por el nombre de la columna: user_id -> users
         return Str::plural(Str::before($column->parameters[0] ?? '', '_id'));
     }
+
+    public function syncIdentity(Connection $connection, DbsyncTable $syncedTable): void
+    {
+        $tableName = $syncedTable->target_table;
+
+        $columns = $syncedTable->columns;
+
+        $identityColumn = $columns->first(function ($column) {
+
+            $method = $column->method;
+            $params = $column->parameters ?? [];
+            $modifiers = $column->modifiers ?? [];
+
+            // 1️⃣ Métodos explícitos de increments
+            $incrementMethods = [
+                'id',
+                'increments',
+                'bigIncrements',
+                'mediumIncrements',
+                'smallIncrements',
+                'tinyIncrements',
+            ];
+
+            if (in_array($method, $incrementMethods, true)) {
+                return true;
+            }
+
+            // 2️⃣ integer / bigInteger con autoIncrement como segundo parámetro
+            if (in_array($method, [
+                'integer',
+                'bigInteger',
+                'unsignedInteger',
+                'unsignedBigInteger',
+            ], true)) {
+
+                // Segundo parámetro = autoIncrement
+                if (isset($params[1]) && $params[1] === true) {
+                    return true;
+                }
+            }
+
+            // 3️⃣ Modificador explícito autoIncrement()
+            foreach ($modifiers as $modifier) {
+
+                if ($modifier === 'autoIncrement') {
+                    return true;
+                }
+
+                if (is_array($modifier) && ($modifier['method'] ?? null) === 'autoIncrement') {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+
+        if (! $identityColumn) {
+            return;
+        }
+
+        $columnName = $identityColumn->parameters[0] ?? 'id';
+
+        DbsyncSchema::connection($connection)->syncIdentity($tableName, $columnName);
+    }
 }
 

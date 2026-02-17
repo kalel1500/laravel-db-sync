@@ -19,4 +19,24 @@ class PostgresDriver extends BaseDriver
         $tableNameRaw = $this->getTableFullName($table);
         $this->connection->statement("TRUNCATE TABLE {$tableNameRaw} RESTART IDENTITY CASCADE");
     }*/
+
+    public function syncIdentity(string $table, string $column = 'id'): void
+    {
+        $sequence = $this->connection->selectOne(
+            "SELECT pg_get_serial_sequence(?, ?) as seq",
+            [$table, $column]
+        )->seq ?? null;
+
+        if (! $sequence) {
+            return;
+        }
+
+        $max = $this->connection->table($table)->max($column);
+        $next = ($max ?? 0) + 1;
+
+        $this->connection->statement(
+            "SELECT setval(?, ?, false)",
+            [$sequence, $next]
+        );
+    }
 }

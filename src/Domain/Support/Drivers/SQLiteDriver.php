@@ -15,4 +15,15 @@ class SQLiteDriver extends BaseDriver
         $schema->dropIfExists($table);
         $this->connection->statement('PRAGMA foreign_keys = ON');
     }
+
+    public function syncIdentity(string $table, string $column = 'id'): void
+    {
+        $max = $this->connection->table($table)->max($column);
+        $next = ($max ?? 0);
+
+        $this->connection->statement(
+            "UPDATE sqlite_sequence SET seq = {$next} WHERE name = ?",
+            [$table]
+        );
+    }
 }

@@ -39,4 +39,15 @@ class SqlServerDriver extends BaseDriver
             $this->connection->statement("DBCC CHECKIDENT ('[{$tableNameRaw}]', RESEED, 0)");
         }
     }*/
+
+    public function syncIdentity(string $table, string $column = 'id'): void
+    {
+        $max       = $this->connection->table($table)->max($column);
+        $next      = ($max ?? 0);
+        $tableName = $this->getDictionaryTableName($table);
+
+        $this->connection->statement(
+            "DBCC CHECKIDENT ('{$tableName}', RESEED, {$next})"
+        );
+    }
 }

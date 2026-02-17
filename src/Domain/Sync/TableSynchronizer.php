@@ -71,6 +71,9 @@ class TableSynchronizer
             $this->schemaBuilder->rebuildDependentForeignKeys($targetShema, $table);
         }
 
+        // 5. Sincronización de la columna autoincremental con el ultimo ID insertando (si aplica)
+        $this->schemaBuilder->syncIdentity($targetConnection, $table);
+
         return $rows;
     }
 
@@ -117,6 +120,9 @@ class TableSynchronizer
         if ($this->schemaBuilder->driverDestroysForeignKeys($targetConnection)) {
             $this->schemaBuilder->rebuildDependentForeignKeys($targetShema, $table);
         }
+
+        // 7. Sincronización de la columna autoincremental con el ultimo ID insertando (si aplica)
+        $this->schemaBuilder->syncIdentity($targetConnection, $table);
 
         return $rows;
     }

@@ -93,6 +93,11 @@ class SchemaManager
         }
     }
 
+    public function syncIdentity(string $table, string $column = 'id'): void
+    {
+        $this->driver()->syncIdentity($table, $column);
+    }
+
     public function insert(DbsyncTable $table, string $targetTable, array $rows): void
     {
         if ($table->insert_row_by_row) {

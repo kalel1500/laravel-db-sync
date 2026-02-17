@@ -103,7 +103,11 @@ class TableSchemaBuilder
     }
 
 
-    // Limpieza
+    /**
+     * --------------------------------------------------------------------------
+     * Métodos de Limpieza
+     * --------------------------------------------------------------------------
+     */
 
     public function forceDropTableIfExists(Connection $connection, string $tableName): void
     {
@@ -111,7 +115,11 @@ class TableSchemaBuilder
     }
 
 
-    // Análisis
+    /**
+     * --------------------------------------------------------------------------
+     * Métodos de Analisis
+     * --------------------------------------------------------------------------
+     */
 
     public function hasSelfReferencingForeignKey(DbsyncTable $table): bool
     {
@@ -175,7 +183,11 @@ class TableSchemaBuilder
     }
 
 
-    // Reparación
+    /**
+     * --------------------------------------------------------------------------
+     * Métodos de Reparación
+     * --------------------------------------------------------------------------
+     */
 
     public function rebuildDependentForeignKeys(Builder $targetShema, DbsyncTable $syncedTable): void
     {

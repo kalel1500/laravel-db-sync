@@ -1,6 +1,40 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.0-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.1-beta.0...master)
+
+## [v0.4.1-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.0-beta.0...v0.4.1-beta.0) - 2026-02-17
+
+### Added
+
+* Nuevo paso en el proceso de sincronización para **sincronizar el autoincremental** tras copiar los datos.
+  <br>Cuando se copian registros con valores explícitos en la columna _identity/autoincrement_, el contador interno puede quedar desfasado (especialmente en Oracle), provocando errores en inserciones posteriores.
+  <br>Se añade soporte completo para recalcularlo automáticamente:
+  * Nuevo método `syncIdentity` en la interfaz `SchemaDriver`.
+  * Implementación de `syncIdentity` en todos los drivers.
+  * Nuevo método `syncIdentity` en `SchemaManager` y disponible a través de la fachada `DbsyncSchema`.
+  * Nuevo método `syncIdentity` en `TableSchemaBuilder`, que detecta si la tabla tiene una columna autoincremental definida en las tablas `dbsync_*`.
+  * Ejecución automática de `syncIdentity` tras copiar los datos en `TableSynchronizer`, tanto en:
+    * `syncUsingDrop`
+    * `syncUsingTemporalTable`
+
+### Changed
+
+* (refactor) Refactor interno del sistema de nombres de tabla en los drivers:
+  * Nuevo método protegido `wrapTable` en `BaseDriver`, que delega en el `QueryGrammar` de Laravel para envolver correctamente los identificadores según el motor (_MySQL_, _PostgreSQL_, _Oracle_, etc.).
+  * Uso de `wrapTable` en las consultas `DROP` y `ALTER` de los drivers de _Oracle_ y _PostgreSQL_ para garantizar compatibilidad y quoting correcto.
+  * Renombrado del método `getTableFullName` a `getDictionaryTableName` en `BaseDriver` para reflejar mejor su responsabilidad.
+  * Sobreescritura de `getDictionaryTableName` en `OracleDriver` para normalizar el nombre de tabla en mayúsculas cuando se consulta el diccionario interno del motor.
+
+>Este cambio mejora la coherencia interna y reduce la duplicación de lógica específica por motor.
+
+### Removed
+
+* (fix) Eliminada la comprobación de existencia de tabla en el método `forceDrop` del `OracleDriver`.
+  <br>La validación ya se realiza previamente en `SchemaManager` mediante `hasTable` de Laravel, por lo que la comprobación adicional en el driver era redundante.
+
+### Fixed
+
+* Se corrige el problema de desincronización del autoincremental tras copiar datos con IDs explícitos, que podía provocar errores en inserciones posteriores (especialmente en Oracle).
 
 ## [v0.4.0-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.1-beta.0...v0.4.0-beta.0) - 2026-02-16
 

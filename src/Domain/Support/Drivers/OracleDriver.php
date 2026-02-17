@@ -23,7 +23,7 @@ class OracleDriver extends BaseDriver
 
         if ($tableExists->total > 0) {
             // CASCADE CONSTRAINTS elimina las FKs que apuntan a esta tabla
-            $this->connection->statement("DROP TABLE {$upperTable} CASCADE CONSTRAINTS PURGE");
+            $this->connection->statement("DROP TABLE {$this->wrapTable($table)} CASCADE CONSTRAINTS PURGE");
         }
     }
 
@@ -35,7 +35,7 @@ class OracleDriver extends BaseDriver
         $this->connection->table($table)->truncate();
         try {
             // Intentamos reiniciar la secuencia de identidad propia de Oracle 12c+
-            $this->connection->statement("ALTER TABLE $upperTable MODIFY ($upperColumn GENERATED AS IDENTITY (START WITH 1))");
+            $this->connection->statement("ALTER TABLE {$this->wrapTable($table)} MODIFY ($upperColumn GENERATED AS IDENTITY (START WITH 1))");
         } catch (\Throwable $e) {
             // Si falla el comando anterior (porque no es Identity o la versión es vieja),
             // buscamos si hay una secuencia asociada manualmente.

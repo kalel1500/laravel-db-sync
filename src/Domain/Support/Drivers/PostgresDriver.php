@@ -8,7 +8,7 @@ class PostgresDriver extends BaseDriver
 {
     public function forceDrop(string $table): void
     {
-        $tableNameRaw = $this->getTableFullName($table);
+        $tableNameRaw = $this->wrapTable($table);
 
         // CASCADE elimina FKs, vistas y otros objetos dependientes
         $this->connection->statement("DROP TABLE IF EXISTS {$tableNameRaw} CASCADE");

@@ -1,6 +1,26 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.1-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.0-beta.0...master)
+
+## [v0.4.0-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.1-beta.0...v0.4.0-beta.0) - 2026-02-16
+
+### Added
+
+- Nueva columna `insert_row_by_row` en la tabla `dbsync_tables` (boolean, default `false`).
+  - Permite forzar la inserción fila por fila dentro de una transacción cuando sea necesario. Pensado principalmente para resolver limitaciones específicas de Oracle al trabajar con valores de texto muy largos.
+  - Nuevo método `insert` en la clase `SchemaManager` que según el campo `insert_row_by_row` llama a uno de los nuevos métodos de la interfaz `SchemaDriver`:
+    - `insertBulk`
+    - `insertRowByRow`
+    - `insertAuto`
+
+### Fixed
+
+- Se ha arreglado el error `ORA-01790` en Oracle cuando se intentan sincronizar campos `CLOB` o strings de más de 4000 caracteres en modo masivo.
+  - **(Mejora vinculada):** Para mitigar el error se ha definido la columna `insert_row_by_row` y asi evitar el insert masivo en Oracle.
+
+### Notas de migración (Breaking Changes Summary)
+
+- (breaking) Se ha modificado la migración de la tabla `dbsync_tables`. Si ya tenías el paquete instalado, deberás añadir manualmente la columna `insert_row_by_row`
 
 ## [v0.3.1-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.3.0-beta.0...v0.3.1-beta.0) - 2026-02-10
 

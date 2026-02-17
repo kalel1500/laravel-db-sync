@@ -10,15 +10,17 @@ class OracleDriver extends BaseDriver
 {
     protected array $hasTextColumns = [];
 
+    protected function getDictionaryTableName(string $table): string
+    {
+        return strtoupper(parent::getDictionaryTableName($table));
+    }
+
     public function forceDrop(string $table): void
     {
-        // Obtener el nombre en mayúsculas (Oracle es case-sensitive en el diccionario)
-        $upperTable = strtoupper($this->getDictionaryTableName($table));
-
         // Comprobar si la tabla existe en user_tables
         $tableExists = $this->connection->selectOne(
             "SELECT count(*) as total FROM user_tables WHERE table_name = ?",
-            [$upperTable]
+            [$this->getDictionaryTableName($table)]
         );
 
         if ($tableExists->total > 0) {
@@ -29,7 +31,6 @@ class OracleDriver extends BaseDriver
 
     public function truncate(string $table, string $column = 'id'): void
     {
-        $upperTable  = strtoupper($this->getDictionaryTableName($table));
         $upperColumn = strtoupper($column);
 
         $this->connection->table($table)->truncate();
@@ -41,7 +42,7 @@ class OracleDriver extends BaseDriver
             // buscamos si hay una secuencia asociada manualmente.
 
             // Buscamos la secuencia más probable (Laravel suele usar NOMBRE_TABLA_SEQ)
-            $sequenceName = $upperTable . "_SEQ";
+            $sequenceName = $this->getDictionaryTableName($table) . "_SEQ";
 
             // Verificamos si la secuencia existe
             $exists = $this->connection->selectOne("SELECT sequence_name FROM user_sequences WHERE sequence_name = ?", [$sequenceName]);

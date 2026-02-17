@@ -13,7 +13,7 @@ class OracleDriver extends BaseDriver
     public function forceDrop(string $table): void
     {
         // Obtener el nombre en mayúsculas (Oracle es case-sensitive en el diccionario)
-        $upperTable = strtoupper($this->getTableFullName($table));
+        $upperTable = strtoupper($this->getDictionaryTableName($table));
 
         // Comprobar si la tabla existe en user_tables
         $tableExists = $this->connection->selectOne(
@@ -29,7 +29,7 @@ class OracleDriver extends BaseDriver
 
     public function truncate(string $table, string $column = 'id'): void
     {
-        $upperTable  = strtoupper($this->getTableFullName($table));
+        $upperTable  = strtoupper($this->getDictionaryTableName($table));
         $upperColumn = strtoupper($column);
 
         $this->connection->table($table)->truncate();

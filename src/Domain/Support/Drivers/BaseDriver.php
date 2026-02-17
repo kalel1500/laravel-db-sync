@@ -14,7 +14,7 @@ abstract class BaseDriver implements SchemaDriver
     {
     }
 
-    protected function getTableFullName(string $table): string
+    protected function getDictionaryTableName(string $table): string
     {
         return $this->connection->getTablePrefix() . $table;
     }

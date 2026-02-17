@@ -9,7 +9,7 @@ class SqlServerDriver extends BaseDriver
     public function forceDrop(string $table): void
     {
         $schema       = $this->connection->getSchemaBuilder();
-        $tableNameRaw = $this->getTableFullName($table);
+        $tableNameRaw = $this->getDictionaryTableName($table);
 
         // SQL Server no tiene CASCADE en el DROP. Hay que borrar las FKs manualmente primero.
 

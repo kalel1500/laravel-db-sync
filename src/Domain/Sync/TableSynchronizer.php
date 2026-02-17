@@ -118,7 +118,6 @@ class TableSynchronizer
             $this->schemaBuilder->rebuildDependentForeignKeys($targetShema, $table);
         }
 
-        // 7. Retornar número de filas copiadas
         return $rows;
     }
 

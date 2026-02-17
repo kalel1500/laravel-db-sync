@@ -105,9 +105,6 @@ class TableSchemaBuilder
 
     // Limpieza
 
-    /**
-     * Elimina una tabla de forma segura rompiendo restricciones de integridad.
-     */
     public function forceDropTableIfExists(Connection $connection, string $tableName): void
     {
         DbsyncSchema::connection($connection)->forceDrop($tableName);
@@ -116,10 +113,6 @@ class TableSchemaBuilder
 
     // Análisis
 
-    /**
-     * Determina si la tabla tiene claves foráneas que apuntan a sí misma.
-     * Esto es crucial para decidir si podemos usar la estrategia de tabla temporal o no.
-     */
     public function hasSelfReferencingForeignKey(DbsyncTable $table): bool
     {
         $targetTable = $table->target_table;
@@ -173,10 +166,6 @@ class TableSchemaBuilder
         return false;
     }
 
-    /**
-     * Determina si el driver de destino elimina físicamente las claves foráneas al eliminar la tabla.
-     * Esto es importante para decidir si necesitamos reconstruir las FKs dependientes.
-     */
     public function driverDestroysForeignKeys(Connection $connection): bool
     {
         $driver = $connection->getDriverName();
@@ -188,9 +177,6 @@ class TableSchemaBuilder
 
     // Reparación
 
-    /**
-     * Busca y recrea las claves foráneas de otras tablas que apuntan a la tabla recién sincronizada.
-     */
     public function rebuildDependentForeignKeys(Builder $targetShema, DbsyncTable $syncedTable): void
     {
         $tableName = $syncedTable->target_table;
@@ -255,9 +241,6 @@ class TableSchemaBuilder
         }
     }
 
-    /**
-     * Lógica para obtener el nombre de la tabla referenciada
-     */
     protected function guessReferencedTable(DbsyncColumn $column): ?string
     {
         $modifiers = $column->modifiers ?? [];

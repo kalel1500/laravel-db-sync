@@ -47,9 +47,6 @@ class SchemaManager
         return $this->driverInstance = new $class($this->connection);
     }
 
-    /**
-     * Borra una tabla ignorando restricciones de integridad según el driver.
-     */
     public function forceDrop(string $table): void
     {
         if (! $this->connection->getSchemaBuilder()->hasTable($table)) {
@@ -58,9 +55,6 @@ class SchemaManager
         $this->driver()->forceDrop($table);
     }
 
-    /**
-     * Vacía varias tablas y resetea los contadores de ID autoincrementales.
-     */
     public function truncate(array $tables): void
     {
         $schema = $this->connection->getSchemaBuilder();

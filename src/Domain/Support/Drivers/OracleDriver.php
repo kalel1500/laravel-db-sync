@@ -17,16 +17,8 @@ class OracleDriver extends BaseDriver
 
     public function forceDrop(string $table): void
     {
-        // Comprobar si la tabla existe en user_tables
-        $tableExists = $this->connection->selectOne(
-            "SELECT count(*) as total FROM user_tables WHERE table_name = ?",
-            [$this->getDictionaryTableName($table)]
-        );
-
-        if ($tableExists->total > 0) {
-            // CASCADE CONSTRAINTS elimina las FKs que apuntan a esta tabla
-            $this->connection->statement("DROP TABLE {$this->wrapTable($table)} CASCADE CONSTRAINTS PURGE");
-        }
+        // CASCADE CONSTRAINTS elimina las FKs que apuntan a esta tabla
+        $this->connection->statement("DROP TABLE {$this->wrapTable($table)} CASCADE CONSTRAINTS PURGE");
     }
 
     public function truncate(string $table, string $column = 'id'): void

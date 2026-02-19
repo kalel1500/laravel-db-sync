@@ -1,6 +1,13 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.1-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.1-beta.1...master)
+
+## [v0.4.1-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.1-beta.0...v0.4.1-beta.1) - 2026-02-18
+
+### Fixed
+
+* (fix) Se ha envuelto la eliminación de bloqueo (`$lock->release()`) en un `tryCatch` para evitar que un error en la liberación del lock corte la ejecución del proceso.
+  <br>En caso de error, se registra un log de Laravel para facilitar la detección y resolución del problema.
 
 ## [v0.4.1-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.0-beta.0...v0.4.1-beta.0) - 2026-02-17
 

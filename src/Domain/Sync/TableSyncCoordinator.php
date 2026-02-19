@@ -49,9 +49,13 @@ class TableSyncCoordinator
 
             $this->tryUpdateRunOnError($run, $e);
 
-            // IMPORTANT: swallow exception, do NOT rethrow
         } finally {
-            optional($lock)->release();
+            try {
+                optional($lock)->release();
+            } catch (\Throwable $e) {
+                $this->tryUpdateRunOnError($run, $e);
+            }
+
         }
     }
 

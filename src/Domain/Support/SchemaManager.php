@@ -67,16 +67,9 @@ class SchemaManager
                 $column = is_string($table) ? 'id' : $table['column'] ?? 'id';
                 $this->driver()->truncate($table, $column);
             }
-        } catch (\Throwable $exception) {
-            // En caso de error, intentamos truncar sin resetear los contadores.
-            foreach ($tables as $table) {
-                $table = is_string($table) ? $table : $table['name'];
-                $this->connection->table($table)->truncate();
-            }
+        } finally {
             $this->tryEnableForeignKeyConstraints($schema, $tables);
         }
-
-        $this->tryEnableForeignKeyConstraints($schema, $tables);
     }
 
     private function tryEnableForeignKeyConstraints(Builder $schema, array $tables): void

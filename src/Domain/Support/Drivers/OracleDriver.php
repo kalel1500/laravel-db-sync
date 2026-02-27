@@ -4,11 +4,32 @@ declare(strict_types=1);
 
 namespace Thehouseofel\Dbsync\Domain\Support\Drivers;
 
+use Composer\InstalledVersions;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
 class OracleDriver extends BaseDriver
 {
     protected array $hasTextColumns = [];
+
+    protected function validateVersion(): void
+    {
+        if (! InstalledVersions::isInstalled('yajra/laravel-oci8')) {
+            throw new \RuntimeException("The package 'yajra/laravel-oci8' is not installed. Please install it to use the Oracle driver.");
+        }
+
+        if (version_compare(InstalledVersions::getVersion('yajra/laravel-oci8'), '12.10', '<')) {
+            throw new \RuntimeException("The installed version of 'yajra/laravel-oci8' is too old. Please update to version 12.10 or higher.");
+        }
+
+        if (! ($this->connection instanceof \Yajra\Oci8\Oci8Connection)) {
+            throw new \RuntimeException("The connection is not an instance of \Yajra\Oci8\Oci8Connection. Please check your Oracle connection configuration.");
+        }
+
+        $minVersion = '12c';
+        if ($this->connection->isVersionBelow($minVersion)) {
+            throw new \RuntimeException("Server version {$this->connection->serverVersion()} is not supported. At least version $minVersion is required.");
+        }
+    }
 
     protected function getDictionaryTableName(string $table): string
     {

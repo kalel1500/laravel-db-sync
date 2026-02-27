@@ -12,6 +12,11 @@ abstract class BaseDriver implements SchemaDriver
 {
     public function __construct(protected Connection $connection)
     {
+        $this->validateVersion();
+    }
+
+    protected function validateVersion(): void
+    {
     }
 
     protected function getDictionaryTableName(string $table): string

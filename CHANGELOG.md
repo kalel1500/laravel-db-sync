@@ -1,6 +1,27 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.1-beta.1...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.5.0-beta.0...master)
+
+## [v0.5.0-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.1-beta.1...v0.5.0-beta.0) - 2026-02-27
+
+### Added
+
+* Validación de Drivers: Sistema de validación en el constructor de los drivers para asegurar que las dependencias necesarias y las versiones de los motores sean compatibles antes de iniciar la sincronización.
+  * (breaking) Ahora se valida que el paquete `yajra/laravel-oci8` esté instalado y actualizado a la versión `^12.10`.
+  * (breaking) También se valida que en la configuración de oracle, la key `server_version` sea `12c` o superior.
+
+### Changed
+
+* (breaking) Se ha simplificado el método `truncate` en el `SchemaManager` eliminando la captura silenciosa de errores y quitando el segundo intento de truncado automático que ignoraba el reseteo de contadores. Ahora, cualquier fallo en la ejecución es visible para el usuario, garantizando transparencia en el proceso.
+
+### Removed
+
+* (breaking) Se elimina el soporte para versiones de Oracle inferiores a 12c (como 11g o 10g), ya que no cuentan con columnas de identidad nativas y no es posible garantizar su estabilidad sin pruebas de integración.
+
+### Migration notes (Breaking Changes Summary)
+
+* **Requisitos de Oracle**: Si utilizas Oracle, ahora es obligatorio tener instalado el paquete `yajra/laravel-oci8` en su versión `^12.10` y contar con un servidor versión `12c` o superior. Además, también debes modificar tu configuración de conexión para incluir la key `server_version` con el valor `12c` o superior.
+* **Gestión de Errores**: Si anteriormente tus procesos dependían de que `truncate` fallara silenciosamente y continuara, ahora deberás gestionar las excepciones, ya que el paquete prioriza la integridad y visibilidad de los errores de base de datos.
 
 ## [v0.4.1-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.1-beta.0...v0.4.1-beta.1) - 2026-02-18
 

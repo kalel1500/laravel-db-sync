@@ -32,43 +32,24 @@ class TableDataCopier
         $total          = 0;
 
         if ($table->source_query) {
-            $primaryKey = $this->resolvePrimaryKeyColumn($table);
-
-            $query = $source
-                ->table($source->raw('(' . $table->source_query . ') as __dbsync_sub__'));
-
-            $numRows = $query->count();
-
-            if ($numRows < 1 || $numRows < ($table->min_records ?? 1)) {
-                return 0;
-            }
-
-            $query->chunkById($table->batch_size, function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
-                $preparedRows = $this->prepareRows(collect($chunk), $caseTransforms);
-                DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
-                $total += count($chunk);
-            }, $primaryKey);
+            $query = $source->table($source->raw('(' . $table->source_query . ') as __dbsync_sub__'));
         } else {
             $columns = $this->resolveTargetColumns($table);
-
-            $primaryKey = $this->resolvePrimaryKeyColumn($table);
-
-            $query = $source
-                ->table($table->source_table)
-                ->select($columns);
-
-            $numRows = $query->count();
-
-            if ($numRows < 1 || $numRows < ($table->min_records ?? 1)) {
-                return 0;
-            }
-
-            $query->chunkById($table->batch_size, function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
-                $preparedRows = $this->prepareRows(collect($chunk), $caseTransforms);
-                DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
-                $total += count($chunk);
-            }, $primaryKey);
+            $query = $source->table($table->source_table)->select($columns);
         }
+
+        $numRows = $query->count();
+
+        if ($numRows < 1 || $numRows < ($table->min_records ?? 1)) {
+            return 0;
+        }
+
+        $primaryKey = $this->resolvePrimaryKeyColumn($table);
+        $query->chunkById($table->batch_size, function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
+            $preparedRows = $this->prepareRows(collect($chunk), $caseTransforms);
+            DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
+            $total += count($chunk);
+        }, $primaryKey);
 
         return $total;
     }

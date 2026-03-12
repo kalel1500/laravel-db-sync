@@ -28,51 +28,76 @@ class TableDataCopier
         $source = DB::connection($connection->source_connection);
         $target = DB::connection($connection->target_connection);
 
+        $caseTransforms = $this->resolveCaseTransforms($table);
+        $total          = 0;
+
         if ($table->source_query) {
-            $rows = collect($source->select($table->source_query));
+            // Con source_query no podemos paginar a nivel SQL, pero sí podemos
+            // hacer el COUNT antes de cargar todos los datos.
+            $count = $source->selectOne(
+                'SELECT COUNT(*) as aggregate FROM (' . $table->source_query . ') as __dbsync_count__'
+            );
+            $numRows = (int)($count->aggregate ?? 0);
+
+            if ($numRows < 1 || $numRows < ($table->min_records ?? 1)) {
+                return 0;
+            }
+
+            collect($source->select($table->source_query))
+                ->chunk($table->batch_size)
+                ->each(function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
+                    $preparedRows = $this->prepareRows($chunk, $caseTransforms);
+                    DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
+                    $total += $chunk->count();
+                });
         } else {
             $columns = $this->resolveTargetColumns($table);
 
-            $rows = $source
+            $primaryKey = 'id'; // TODO Cambiar por un calculo
+
+            $query = $source
                 ->table($table->source_table)
-                ->select($columns)
-                ->get();
-        }
+                ->select($columns);
 
-        $numRows = $rows->count();
-        if ($numRows < 1 || $numRows < ($table->min_records ?? 1)) {
-            return 0;
-        }
+            $numRows = $query->count();
 
-        $caseTransforms = $this->resolveCaseTransforms($table);
+            if ($numRows < 1 || $numRows < ($table->min_records ?? 1)) {
+                return 0;
+            }
 
-        return $rows
-            ->chunk($table->batch_size)
-            ->reduce(function (int $total, $chunk) use ($target, $targetTable, $caseTransforms, $table) {
-
-                $preparedRows = $chunk->map(function ($row) use ($caseTransforms) {
-                    $data = (array)$row;
-
-                    foreach ($caseTransforms as $column => $transform) {
-                        if (
-                            array_key_exists($column, $data) &&
-                            is_string($data[$column])
-                        ) {
-                            $data[$column] = match ($transform) {
-                                'upper' => mb_strtoupper($data[$column]),
-                                'lower' => mb_strtolower($data[$column]),
-                                default => $data[$column],
-                            };
-                        }
-                    }
-
-                    return $data;
-                })->all();
-
+            $query->chunkById($table->batch_size, function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
+                $preparedRows = $this->prepareRows(collect($chunk), $caseTransforms);
                 DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
+                $total += count($chunk);
+            }, $primaryKey);
+        }
 
-                return $total + $chunk->count();
-            }, 0);
+        return $total;
+    }
+
+    /**
+     * Apply case transforms to a collection of rows and return them as a plain array.
+     */
+    protected function prepareRows(\Illuminate\Support\Collection $chunk, array $caseTransforms): array
+    {
+        return $chunk->map(function ($row) use ($caseTransforms) {
+            $data = (array)$row;
+
+            foreach ($caseTransforms as $column => $transform) {
+                if (
+                    array_key_exists($column, $data) &&
+                    is_string($data[$column])
+                ) {
+                    $data[$column] = match ($transform) {
+                        'upper' => mb_strtoupper($data[$column]),
+                        'lower' => mb_strtolower($data[$column]),
+                        default => $data[$column],
+                    };
+                }
+            }
+
+            return $data;
+        })->all();
     }
 
     /**

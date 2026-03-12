@@ -94,7 +94,7 @@ class TableDataCopier
      *  3. First value of $table->primary_key (composite-key definition).
      *  4. Name of the very first column defined on the table.
      */
-    public function resolvePrimaryKeyColumn(DbsyncTable $table): string
+    protected function resolvePrimaryKeyColumn(DbsyncTable $table): string
     {
         $incrementMethods = [
             'id',

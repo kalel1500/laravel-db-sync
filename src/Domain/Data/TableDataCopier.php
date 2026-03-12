@@ -53,7 +53,7 @@ class TableDataCopier
         } else {
             $columns = $this->resolveTargetColumns($table);
 
-            $primaryKey = 'id'; // TODO Cambiar por un calculo
+            $primaryKey = $this->resolvePrimaryKeyColumn($table);
 
             $query = $source
                 ->table($table->source_table)
@@ -98,6 +98,85 @@ class TableDataCopier
 
             return $data;
         })->all();
+    }
+
+    /**
+     * Resolve the primary key column name to use with chunkById().
+     *
+     * Resolution order:
+     *  1. Column whose method is an auto-increment shorthand (id, increments, bigIncrements…)
+     *     OR an integer type with autoIncrement=true as second parameter.
+     *  2. Column that has a 'primary' modifier (string or array form).
+     *  3. First value of $table->primary_key (composite-key definition).
+     *  4. Name of the very first column defined on the table.
+     */
+    public function resolvePrimaryKeyColumn(DbsyncTable $table): string
+    {
+        $incrementMethods = [
+            'id',
+            'increments',
+            'bigIncrements',
+            'mediumIncrements',
+            'smallIncrements',
+            'tinyIncrements',
+        ];
+
+        $integerMethods = [
+            'integer',
+            'bigInteger',
+            'mediumInteger',
+            'smallInteger',
+            'tinyInteger',
+            'unsignedInteger',
+            'unsignedBigInteger',
+            'unsignedMediumInteger',
+            'unsignedSmallInteger',
+            'unsignedTinyInteger',
+        ];
+
+        $columns = $table->columns->sortBy('pivot.order');
+
+        // 1. Método de autoincrement explícito, o entero con segundo parámetro true
+        foreach ($columns as $column) {
+            $method = $column->method;
+            $params = $column->parameters ?? [];
+
+            if (in_array($method, $incrementMethods, true)) {
+                // 'id' sin parámetros → columna 'id'; con parámetros → $params[0]
+                return $params[0] ?? 'id';
+            }
+
+            if (in_array($method, $integerMethods, true) && ($params[1] ?? false) === true) {
+                return $params[0];
+            }
+        }
+
+        // 2. Modificador 'primary' en cualquier columna
+        foreach ($columns as $column) {
+            $params    = $column->parameters ?? [];
+            $modifiers = $column->modifiers  ?? [];
+
+            foreach ($modifiers as $modifier) {
+                $modMethod = is_array($modifier) ? ($modifier['method'] ?? '') : $modifier;
+
+                if ($modMethod === 'primary') {
+                    return $params[0];
+                }
+            }
+        }
+
+        // 3. Primer valor de primary_key compuesta
+        if (!empty($table->primary_key[0])) {
+            return $table->primary_key[0];
+        }
+
+        // 4. Primera columna de la tabla como último recurso
+        $first = $columns->first();
+        if ($first) {
+            return $first->parameters[0] ?? 'id';
+        }
+
+        return 'id';
     }
 
     /**

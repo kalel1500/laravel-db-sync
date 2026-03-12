@@ -39,17 +39,22 @@ class TableDataCopier
         }
 
         $numRows = $query->count();
-
         if ($numRows < 1 || $numRows < ($table->min_records ?? 1)) {
             return 0;
         }
 
-        $primaryKey = $this->resolvePrimaryKeyColumn($table);
-        $query->chunkById($table->batch_size, function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
+        $callback = function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
             $preparedRows = $this->prepareRows(collect($chunk), $caseTransforms);
             DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
             $total += count($chunk);
-        }, $primaryKey);
+        };
+
+        if ($table->chunk_by_column) {
+            $query->chunkById($table->batch_size, $callback, $table->chunk_by_column);
+        } else {
+            $orderColumn = $this->resolvePrimaryKeyColumn($table);
+            $query->orderBy($orderColumn)->chunk($table->batch_size, $callback);
+        }
 
         return $total;
     }

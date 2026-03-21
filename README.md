@@ -79,11 +79,11 @@ In `config/database.php`:
 
 #### `dbsync_tables`
 
-| id | source_table | target_table | min_records | active | source_query | use_temporal_table | batch_size | insert_row_by_row | primary_key | unique_keys | indexes            | connection_id |
-|----|--------------|--------------|-------------|--------|--------------|--------------------|------------|-------------------|-------------|-------------|--------------------|---------------|
-| 1  | users        | users        | 300         | true   | null         | true               | 1000       | false             | null        | null        | null               | 1             |
-| 2  | roles        | roles        | 100         | true   | null         | false              | 500        | false             | null        | null        | null               | 1             |
-| 2  | types        | types        | 1           | true   | null         | false              | 500        | false             | null        | null        | [["name", "slug"]] | 1             |
+| id | source_table | target_table | min_records | active | source_query | use_temporal_table | batch_size | chunk_config | insert_row_by_row | primary_key | unique_keys | indexes            | connection_id |
+|----|--------------|--------------|-------------|--------|--------------|--------------------|------------|--------------|-------------------|-------------|-------------|--------------------|---------------|
+| 1  | users        | users        | 300         | true   | null         | true               | 1000       | null         | false             | null        | null        | null               | 1             |
+| 2  | roles        | roles        | 100         | true   | null         | false              | 500        | null         | false             | null        | null        | null               | 1             |
+| 2  | types        | types        | 1           | true   | null         | false              | 500        | null         | false             | null        | null        | [["name", "slug"]] | 1             |
 
 > Note on Composite Keys: The `unique_keys` and `indexes` fields must follow an "array of arrays" format: [["col1"], ["col2", "col3"]].
 
@@ -186,6 +186,34 @@ Used when: `dbsync_tables.use_temporal_table = true`
 
 ---
 
+## Memory & Performance Optimization
+
+The package uses **Database Query Chunking** instead of loading collections into memory. This allows the synchronization of massive tables even in memory-restricted environments (like Docker).
+
+### Automatic Column Resolution
+
+To process data in chunks, the package must order the source table. It automatically resolves the best column following this priority:
+1. **Primary/Auto-increment Key**: Uses `chunkById()` for maximum performance.
+2. **Timestamp Columns**: Uses `chunk()` ordered by date (e.g., `created_at`).
+3. **Composite Key / First Column**: Fallback strategy using standard `chunk()` with offset.
+
+### Custom Chunk Configuration
+
+You can manually override this behavior in the `dbsync_tables.chunk_config` field using a JSON object:
+
+| Key      | Type         | Description                                         | Example       |
+|----------|--------------|-----------------------------------------------------|---------------|
+| `column` | string       | The column name to use for ordering/chunking.       | `"id_user"`   |
+| `method` | string\|null | The Laravel method to use (`chunk` or `chunkById`). | `"chunkById"` |
+
+Example usage: `{"column": "custom_uid", "method": "chunkById"}`
+
+>⚠️ If, when populating the package's databases, you find large tables without primary keys or auto-incrementing values, you should consider filling the `chunk_config` field to improve loading performance.
+>
+> You should use `chunkById` when the column is `unique` and `not null`. Otherwise, you should use the `chunk` method.
+
+---
+
 ## Data Insertion Mode
 
 By default, the package uses **bulk inserts** for maximum performance.
@@ -268,20 +296,21 @@ Defines **source and target Laravel connections**.
 
 Defines **what to sync and how**.
 
-| Field              | Description                                                                                    | Type     | Example                     |
-|--------------------|------------------------------------------------------------------------------------------------|----------|-----------------------------|
-| source_table       | Source table name                                                                              | (string) | _user_                      |
-| target_table       | Destination table name                                                                         | (string) | _user_                      |
-| min_records        | Minimum number of records required for the sync to be considered successful                    | (int)    | _1_                         |
-| active             | Enables or disables synchronization for this table                                             | (bool)   | _true_                      |
-| source_query       | Optional custom SELECT                                                                         | (string) | _select..._                 |
-| use_temporal_table | Enables temporal strategy                                                                      | (bool)   | _true_                      |
-| batch_size         | Insert chunk size                                                                              | (int)    | _500_                       |
-| insert_row_by_row  | Forces row-by-row insertion instead of bulk (use only if needed, mainly for Oracle edge cases) | (bool)   | _false_                     |
-| primary_key        | * Primary key definition                                                                       | (array)  | `["user_id", "rol_id"]`     |
-| unique_keys        | * Unique constraints                                                                           | (array)  | `[["name", "type"]]`        |
-| indexes            | * Index definitions                                                                            | (array)  | `[["name", "description"]]` |
-| connection_id      | Reference to the connection used by this table                                                 | (int)    | _1_                         |
+| Field              | Description                                                                                    | Type     | Example                                           |
+|--------------------|------------------------------------------------------------------------------------------------|----------|---------------------------------------------------|
+| source_table       | Source table name                                                                              | (string) | _user_                                            |
+| target_table       | Destination table name                                                                         | (string) | _user_                                            |
+| min_records        | Minimum number of records required for the sync to be considered successful                    | (int)    | _1_                                               |
+| active             | Enables or disables synchronization for this table                                             | (bool)   | _true_                                            |
+| source_query       | Optional custom SELECT                                                                         | (string) | _select..._                                       |
+| use_temporal_table | Enables temporal strategy                                                                      | (bool)   | _true_                                            |
+| batch_size         | Insert chunk size                                                                              | (int)    | _500_                                             |
+| chunk_config       | Optional JSON to force a specific chunking strategy.                                           | (int)    | `{"column": "custom_uid", "method": "chunkById"}` |
+| insert_row_by_row  | Forces row-by-row insertion instead of bulk (use only if needed, mainly for Oracle edge cases) | (bool)   | _false_                                           |
+| primary_key        | * Primary key definition                                                                       | (array)  | `["user_id", "rol_id"]`                           |
+| unique_keys        | * Unique constraints                                                                           | (array)  | `[["name", "type"]]`                              |
+| indexes            | * Index definitions                                                                            | (array)  | `[["name", "description"]]`                       |
+| connection_id      | Reference to the connection used by this table                                                 | (int)    | _1_                                               |
 
 
 > The `primary_key`, `unique_keys`, and `indexes` fields are only required when using composite keys. Otherwise, they must be defined in the `modifiers` field of the `dbsync_columns` table.

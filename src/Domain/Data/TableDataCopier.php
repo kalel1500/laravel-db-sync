@@ -6,6 +6,7 @@ namespace Thehouseofel\Dbsync\Domain\Data;
 
 use Illuminate\Support\Facades\DB;
 use Thehouseofel\Dbsync\Infrastructure\Facades\DbsyncSchema;
+use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncColumn;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
@@ -90,146 +91,99 @@ class TableDataCopier
      * Resolve the primary key column name to use with chunkById().
      *
      * Resolution order:
-     *  0. Column specified in chunk_config if it has the defined method.
-     *  1. Column whose method is an auto-increment shorthand (id, increments, bigIncrements…)
-     *     OR an integer type with autoIncrement=true as second parameter.
-     *  2. Column that has a 'primary' modifier (string or array form).
-     *  3. Column specified in chunk_config if it does not have the method defined.
-     *  4. First column of type date.
-     *  5. First value of $table->primary_key (composite-key definition).
-     *  6. Name of the very first column defined on the table.
+     *  0.   Value chunk_config with method.
+     *  1.1. Auto-increment methods (id, increments, bigIncrements…)
+     *  1.2. Primary modifier.
+     *  1.3. Integer type with autoIncrement=true as second parameter.
+     *  1.4. String Ids NO Nullables (UUID, ULID)
+     *  1.5. Unique modifier NO Nullable.
+     *  2.1. Value chunk_config (without method).
+     *  2.2. Date columns.
+     *  2.3. Fallback: Composite-key or first column.
      */
     protected function resolvePrimaryKeyColumn(DbsyncTable $table): ResolvedPrimaryDto
     {
         $chunk_config = $table->chunk_config;
         $chunk_column = $chunk_config['column'] ?? null;
         $chunk_method = $chunk_config['method'] ?? null;
+
+        // 0. Prioridad Manual: Si el usuario fuerza un método, manda el usuario.
         if ($chunk_method) {
             return new ResolvedPrimaryDto($chunk_column, ChunkMethodVo::from($chunk_method));
         }
 
-        $incrementMethods = [
-            'id',
-            'increments',
-            'bigIncrements',
-            'mediumIncrements',
-            'smallIncrements',
-            'tinyIncrements',
-        ];
-
-        $integerMethods = [
-            'integer',
-            'bigInteger',
-            'mediumInteger',
-            'smallInteger',
-            'tinyInteger',
-            'unsignedInteger',
-            'unsignedBigInteger',
-            'unsignedMediumInteger',
-            'unsignedSmallInteger',
-            'unsignedTinyInteger',
-        ];
-
-        $stringIdMethods = ['uuid', 'ulid'];
-
-        $dateMethods = [
-            'timestamp',
-            'dateTime',
-            'date',
-            'timestampTz',
-            'dateTimeTz'
-        ];
-
-        $datePluralMethods = [
-            'timestamps',
-            'timestampsTz',
-        ];
+        // Helper interno o lógica repetible
+        $hasModifier = function (DbsyncColumn $col, string $name) {
+            $modifiers = collect($col->modifiers ?? []);
+            return $modifiers->contains(function ($m) use ($name) {
+                $method = is_array($m) ? ($m['method'] ?? '') : $m;
+                return $method === $name;
+            });
+        };
 
         $columns = $chunk_column
             ? $table->columns->whereLike('parameters', "%$chunk_column%")->sortBy('pivot.order')
             : $table->columns->sortBy('pivot.order');
 
-        // 1. Método de autoincrement explícito, o entero con segundo parámetro true
-        foreach ($columns as $column) {
-            $method = $column->method;
-            $params = $column->parameters ?? [];
+        // --- ESTRATO 1: CHUNK BY ID (Máximo rendimiento, No Nullables) ---
 
-            // Métodos autoincrementales
-            if (in_array($method, $incrementMethods, true)) {
-                // 'id' sin parámetros → columna 'id'; con parámetros → $params[0]
-                return new ResolvedPrimaryDto($params[0] ?? 'id', ChunkMethodVo::chunkById);
-            }
-
-            // Métodos integer con segundo parámetro true (autoIncrement)
-            if (in_array($method, $integerMethods, true) && ($params[1] ?? false) === true) {
-                return new ResolvedPrimaryDto($params[0], ChunkMethodVo::chunkById);
-            }
-
-            // Métodos unicos (UUID / ULID)
-            if (in_array($method, $stringIdMethods, true)) {
-                return new ResolvedPrimaryDto($params[0], ChunkMethodVo::chunkById);
+        // 1.1 Shorthands de Incremento (id, bigIncrements...)
+        $incrementMethods = ['id', 'increments', 'bigIncrements', 'mediumIncrements', 'smallIncrements', 'tinyIncrements'];
+        foreach ($columns as $col) {
+            if (in_array($col->method, $incrementMethods, true)) {
+                return new ResolvedPrimaryDto($col->parameters[0] ?? 'id', ChunkMethodVo::chunkById);
             }
         }
 
-        // 2. Modificador 'primary' en cualquier columna
-        foreach ($columns as $column) {
-            $params    = $column->parameters ?? [];
-            $modifiers = $column->modifiers  ?? [];
-
-            foreach ($modifiers as $modifier) {
-                $modMethod = is_array($modifier) ? ($modifier['method'] ?? '') : $modifier;
-
-                if ($modMethod === 'primary') {
-                    return new ResolvedPrimaryDto($params[0], ChunkMethodVo::chunkById);
-                }
+        // 1.2 Modificador 'primary'
+        foreach ($columns as $col) {
+            if ($hasModifier($col, 'primary')) {
+                return new ResolvedPrimaryDto($col->parameters[0], ChunkMethodVo::chunkById);
             }
         }
 
-        // 3 Modificador 'unique' en cualquier columna
-        foreach ($columns as $column) {
-            $params    = $column->parameters ?? [];
-            $modifiers = $column->modifiers  ?? [];
-
-            foreach ($modifiers as $modifier) {
-                $modMethod = is_array($modifier) ? ($modifier['method'] ?? '') : $modifier;
-
-                if ($modMethod === 'unique') {
-                    return new ResolvedPrimaryDto($params[0] ?? $column->name, ChunkMethodVo::chunkById);
-                }
+        // 1.3 Enteros marcados como autoIncrement explícito ->integer('col', true)
+        $integerMethods = ['integer', 'bigInteger', 'mediumInteger', 'smallInteger', 'tinyInteger', 'unsignedInteger', 'unsignedBigInteger', 'unsignedMediumInteger', 'unsignedSmallInteger', 'unsignedTinyInteger',];
+        foreach ($columns as $col) {
+            if (in_array($col->method, $integerMethods, true) && ($col->parameters[1] ?? false) === true) {
+                return new ResolvedPrimaryDto($col->parameters[0], ChunkMethodVo::chunkById);
             }
         }
 
-        // 4. Devolver la columna indicada en chunk_config si existe, aunque no cumpla las condiciones anteriores
+        // 1.4 String IDs (UUID/ULID) NO Nullables
+        foreach ($columns as $col) {
+            if (in_array($col->method, ['uuid', 'ulid'], true) && !$hasModifier($col, 'nullable')) {
+                return new ResolvedPrimaryDto($col->parameters[0] ?? $col->method, ChunkMethodVo::chunkById);
+            }
+        }
+
+        // 1.5 Modificador 'unique' NO Nullable
+        foreach ($columns as $col) {
+            if ($hasModifier($col, 'unique') && !$hasModifier($col, 'nullable')) {
+                return new ResolvedPrimaryDto($col->parameters[0], ChunkMethodVo::chunkById);
+            }
+        }
+
+        // --- ESTRATO 2: CHUNK NORMAL (Offset/OrderBy, Casos menos seguros) ---
+
+        // 2.1 Columna indicada en chunk_config pero sin método (Fallback de usuario)
         if ($chunk_column) {
             return new ResolvedPrimaryDto($chunk_column, ChunkMethodVo::chunk);
         }
 
-        // 5. Buscar columnas de tipo fecha/timestamp
-        foreach ($columns as $column) {
-            $method = $column->method;
-
-            if (in_array($method, $dateMethods, true)) {
-                return new ResolvedPrimaryDto($column->parameters[0] ?? 'created_at', ChunkMethodVo::chunk);
-            }
-
-            // Si es 'timestamps' (plural), Laravel crea 'created_at' y 'updated_at'
-            if (in_array($method, $datePluralMethods, true)) {
-                return new ResolvedPrimaryDto('created_at', ChunkMethodVo::chunk);
+        // 2.2 Columnas de Fecha (Muy estables para el orden cronológico)
+        $dateMethods = ['timestamp', 'dateTime', 'date', 'timestampTz', 'dateTimeTz', 'timestamps', 'timestampsTz'];
+        foreach ($columns as $col) {
+            if (in_array($col->method, $dateMethods, true)) {
+                $name = in_array($col->method, ['timestamps', 'timestampsTz']) ? 'created_at' : ($col->parameters[0]);
+                return new ResolvedPrimaryDto($name, ChunkMethodVo::chunk);
             }
         }
 
-        // 6. Primer valor de primary_key compuesta
-        if (!empty($table->primary_key[0])) {
-            return new ResolvedPrimaryDto($table->primary_key[0], ChunkMethodVo::chunk);
-        }
+        // 2.3 Fallback Final: PK Compuesta o Primera Columna
+        $fallbackName = $table->primary_key[0] ?? ($columns->first()?->parameters[0] ?? 'id');
 
-        // 7. Primera columna de la tabla como último recurso
-        $first = $columns->first();
-        if ($first) {
-            return new ResolvedPrimaryDto($first->parameters[0] ?? 'id', ChunkMethodVo::chunk);
-        }
-
-        return new ResolvedPrimaryDto('id', ChunkMethodVo::chunk);
+        return new ResolvedPrimaryDto($fallbackName, ChunkMethodVo::chunk);
     }
 
     /**

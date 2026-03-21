@@ -66,4 +66,9 @@ abstract class BaseDriver implements SchemaDriver
     {
         $this->insertBulk($targetTable, $rows);
     }
+
+    public function disableBuffer(): void
+    {
+        // By default, do nothing. Drivers that support disabling buffer should override this method.
+    }
 }

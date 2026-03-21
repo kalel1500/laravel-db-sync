@@ -28,6 +28,8 @@ class TableDataCopier
         $source = DB::connection($connection->source_connection);
         $target = DB::connection($connection->target_connection);
 
+        DbsyncSchema::connection($source)->disableBuffer();
+
         $caseTransforms = $this->resolveCaseTransforms($table);
         $total          = 0;
 

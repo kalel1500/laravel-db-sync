@@ -99,4 +99,9 @@ class SchemaManager
             $this->driver()->insertBulk($targetTable, $rows);
         }
     }
+
+    public function disableBuffer(): void
+    {
+        $this->driver()->disableBuffer();
+    }
 }

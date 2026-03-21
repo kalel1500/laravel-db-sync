@@ -19,4 +19,6 @@ interface SchemaDriver
     public function insertRowByRow(string $targetTable, array $rows): void;
 
     public function insertAuto(DbsyncTable $table, string $targetTable, array $rows): void;
+
+    public function disableBuffer(): void;
 }

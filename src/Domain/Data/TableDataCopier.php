@@ -49,11 +49,11 @@ class TableDataCopier
             $total += count($chunk);
         };
 
-        if ($table->chunk_by_column) {
-            $query->chunkById($table->batch_size, $callback, $table->chunk_by_column);
+        $resolvedCol = $this->resolvePrimaryKeyColumn($table);
+        if ($resolvedCol->method->isChunkById()) {
+            $query->chunkById($table->batch_size, $callback, $resolvedCol->name);
         } else {
-            $orderColumn = $this->resolvePrimaryKeyColumn($table);
-            $query->orderBy($orderColumn)->chunk($table->batch_size, $callback);
+            $query->orderBy($resolvedCol->name)->chunk($table->batch_size, $callback);
         }
 
         return $total;
@@ -94,8 +94,15 @@ class TableDataCopier
      *  3. First value of $table->primary_key (composite-key definition).
      *  4. Name of the very first column defined on the table.
      */
-    protected function resolvePrimaryKeyColumn(DbsyncTable $table): string
+    protected function resolvePrimaryKeyColumn(DbsyncTable $table): ResolvedPrimaryDto
     {
+        $chunk_config = $table->chunk_config;
+        $chunk_column = $chunk_config['column'] ?? null;
+        $chunk_method = $chunk_config['method'] ?? null;
+        if ($chunk_method) {
+            return new ResolvedPrimaryDto($chunk_column, ChunkMethodVo::from($chunk_method));
+        }
+
         $incrementMethods = [
             'id',
             'increments',
@@ -118,7 +125,9 @@ class TableDataCopier
             'unsignedTinyInteger',
         ];
 
-        $columns = $table->columns->sortBy('pivot.order');
+        $columns = $chunk_column
+            ? $table->columns->whereLike('parameters', "%$chunk_column%")->sortBy('pivot.order')
+            : $table->columns->sortBy('pivot.order');
 
         // 1. Método de autoincrement explícito, o entero con segundo parámetro true
         foreach ($columns as $column) {
@@ -127,11 +136,11 @@ class TableDataCopier
 
             if (in_array($method, $incrementMethods, true)) {
                 // 'id' sin parámetros → columna 'id'; con parámetros → $params[0]
-                return $params[0] ?? 'id';
+                return new ResolvedPrimaryDto($params[0] ?? 'id', ChunkMethodVo::chunkById);
             }
 
             if (in_array($method, $integerMethods, true) && ($params[1] ?? false) === true) {
-                return $params[0];
+                return new ResolvedPrimaryDto($params[0], ChunkMethodVo::chunkById);
             }
         }
 
@@ -144,23 +153,28 @@ class TableDataCopier
                 $modMethod = is_array($modifier) ? ($modifier['method'] ?? '') : $modifier;
 
                 if ($modMethod === 'primary') {
-                    return $params[0];
+                    return new ResolvedPrimaryDto($params[0], ChunkMethodVo::chunkById);
                 }
             }
         }
 
-        // 3. Primer valor de primary_key compuesta
-        if (!empty($table->primary_key[0])) {
-            return $table->primary_key[0];
+        // 3. Devolver la columna indicada en chunk_config si existe, aunque no cumpla las condiciones anteriores
+        if ($chunk_column) {
+            return new ResolvedPrimaryDto($chunk_column, ChunkMethodVo::chunk);
         }
 
-        // 4. Primera columna de la tabla como último recurso
+        // 4. Primer valor de primary_key compuesta
+        if (!empty($table->primary_key[0])) {
+            return new ResolvedPrimaryDto($table->primary_key[0], ChunkMethodVo::chunk);
+        }
+
+        // 5. Primera columna de la tabla como último recurso
         $first = $columns->first();
         if ($first) {
-            return $first->parameters[0] ?? 'id';
+            return new ResolvedPrimaryDto($first->parameters[0] ?? 'id', ChunkMethodVo::chunk);
         }
 
-        return 'id';
+        return new ResolvedPrimaryDto('id', ChunkMethodVo::chunk);
     }
 
     /**

@@ -176,12 +176,26 @@ class TableDataCopier
             }
         }
 
-        // 3. Devolver la columna indicada en chunk_config si existe, aunque no cumpla las condiciones anteriores
+        // 3 Modificador 'unique' en cualquier columna
+        foreach ($columns as $column) {
+            $params    = $column->parameters ?? [];
+            $modifiers = $column->modifiers  ?? [];
+
+            foreach ($modifiers as $modifier) {
+                $modMethod = is_array($modifier) ? ($modifier['method'] ?? '') : $modifier;
+
+                if ($modMethod === 'unique') {
+                    return new ResolvedPrimaryDto($params[0] ?? $column->name, ChunkMethodVo::chunkById);
+                }
+            }
+        }
+
+        // 4. Devolver la columna indicada en chunk_config si existe, aunque no cumpla las condiciones anteriores
         if ($chunk_column) {
             return new ResolvedPrimaryDto($chunk_column, ChunkMethodVo::chunk);
         }
 
-        // 4. Buscar columnas de tipo fecha/timestamp
+        // 5. Buscar columnas de tipo fecha/timestamp
         foreach ($columns as $column) {
             $method = $column->method;
 
@@ -195,12 +209,12 @@ class TableDataCopier
             }
         }
 
-        // 5. Primer valor de primary_key compuesta
+        // 6. Primer valor de primary_key compuesta
         if (!empty($table->primary_key[0])) {
             return new ResolvedPrimaryDto($table->primary_key[0], ChunkMethodVo::chunk);
         }
 
-        // 6. Primera columna de la tabla como último recurso
+        // 7. Primera columna de la tabla como último recurso
         $first = $columns->first();
         if ($first) {
             return new ResolvedPrimaryDto($first->parameters[0] ?? 'id', ChunkMethodVo::chunk);

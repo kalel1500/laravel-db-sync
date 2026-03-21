@@ -1,0 +1,97 @@
+## Contexto
+
+He desarrollado un paquete llamado "laravel-db-sync" que permite sincronizar bases de datos entre diferentes conexiones de laravel. Y no solo traslada datos sino que tambien crea la estructura usando el Builder de Laravel.
+
+Para ello tengo estas tablas:
+    Schema::create('dbsync_connections', function (Blueprint $table) {
+        $table->id();
+        $table->string('source_connection');
+        $table->string('target_connection');
+        $table->boolean('active')->default(true);
+    });
+
+    Schema::create('dbsync_tables', function (Blueprint $table) {
+        $table->id();
+        $table->string('source_table');
+        $table->string('target_table');
+        $table->unsignedInteger('min_records')->nullable();
+        $table->boolean('active')->default(true);
+        $table->longText('source_query')->nullable();
+        $table->boolean('use_temporal_table');
+        $table->unsignedInteger('batch_size')->default(1000);
+        $table->boolean('insert_row_by_row')->default(false);
+        $table->json('primary_key')->nullable();
+        $table->json('unique_keys')->nullable();
+        $table->json('indexes')->nullable();
+        $table->foreignId('connection_id')->constrained('dbsync_connections')->cascadeOnDelete();
+        $table->unique(['connection_id', 'target_table']);
+        $table->index(['active']);
+    });
+
+    Schema::create('dbsync_columns', function (Blueprint $table) {
+        $table->id();
+        $table->string('method'); // Blueprint method: string, integer, decimal, foreignId, etc.
+        $table->json('parameters')->nullable(); // Parameters: ["name", 100], ["user_id"], etc.
+        $table->json('modifiers')->nullable(); // Modifiers: ["nullable", "unique"], [{"method": "...", "parameters": [".."]}], etc.
+        $table->boolean('self_referencing')->default(false);
+        $table->string('case_transform')->nullable(); // upper | lower
+        $table->string('code')->unique()->nullable();
+    });
+
+    Schema::create('dbsync_column_table', function (Blueprint $table) {
+        $table->id();
+        $table->foreignId('table_id')->constrained('dbsync_tables')->cascadeOnDelete();
+        $table->foreignId('column_id')->constrained('dbsync_columns')->cascadeOnDelete();
+        $table->unsignedInteger('order')->default(0);
+        $table->unique(['table_id', 'column_id']);
+        $table->index(['table_id', 'order']);
+    });
+
+    Schema::create('dbsync_table_runs', function (Blueprint $table) {
+        $table->id();
+        $table->foreignId('connection_id')->constrained('dbsync_connections')->cascadeOnDelete();
+        $table->foreignId('table_id')->constrained('dbsync_tables')->cascadeOnDelete();
+        $table->string('status', 20)->comment('pending | running | success | failed');
+        $table->timestamp('started_at')->nullable();
+        $table->timestamp('finished_at')->nullable();
+        $table->unsignedBigInteger('rows_copied')->nullable();
+        $table->longText('error_message')->nullable();
+        $table->longText('error_trace')->nullable();
+        $table->timestamps();
+
+        $table->index(['status']);
+        $table->index(['table_id', 'status']);
+        $table->index(['started_at']);
+    });
+
+Como habrás podido ver tengo:
+ - una tabla de conexiones donde guardo el nombre de las conexiones de laravel (origen y destino).
+ - una tabla donde guardo las tablas a sincronizar, con varios campos de configuración
+ - una tabla de columnas donde guardo la estructura de las tablas a crear en el destino (con su método de blueprint, parámetros, modificadores, etc.)
+ - una tabla pivote para relacionar las columnas con las tablas y guardar el orden
+ - una tabla para guardar las ejecuciones de cada tabla
+
+Además, tengo un comando de artisan "php artisan dbsync:run" que se encarga de ejecutar la sincronización:
+- Primero hace la creación de la tabla en el destino usando el Builder de Laravel (depende del campo "use_temporal_table" creara una temporal y la renombrara o directamente borrara la tabla del destino).
+- Luego realiza una consulta al origen (dependiendo del campo "source_query" puede ser una consulta personalizada o un simple "select * from table") y va copiando los datos por lotes (dependiendo del campo "batch_size") hasta completar la sincronización.
+
+
+## Chunk
+
+Aquí es donde entra lo del chunk.
+
+Antes tenía una version que hacía la query y después usaba el método "chunk" en la colección para ir haciendo los inserts.
+Pero en un entorno de Docker (no en todos) se quedaba sin memoria y se caía el proceso sin dejar ningún log (aun teniendo el tryCatch ya que el proceso muere).
+Entonces me dijeron que sería debido a que el array de resultados es muy grande y que dbo aplicar el chunck a la query y no a la colección.
+
+Al estar solo leyendo podría usar el chunk directamente, pero como es un paquete no sé qué cantidad de datos tendrán los usuarios que lo instalen.
+Además, como no uso eloquent sino el query bulder (DB::connection($connection->source_connection)->table(...)->select(...)), aunque solo usara el chunck, me pide que le ponga un orderBy.
+
+Para intentar arreglarlo me cree este método para buscar la columna de la clave primaria (autoincremental)
+    protected function resolvePrimaryKeyColumn(DbsyncTable $table): string
+    {
+    }
+
+
+Pero como ves si no encuentra ninguna columna con autoincrement o primary, se queda con la primera columna que encuentre, lo cual no es ideal pero al menos no se queda sin memoria y se puede sincronizar aunque sea un poco mas lento (ya que no se puede usar el chunk).
+

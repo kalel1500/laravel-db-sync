@@ -430,4 +430,4 @@ The package is currently in **Beta**. While the logic is implemented for all maj
 
 ## License
 
-laravel-db-sync is open-sourced software licensed under the [GPL-3.0 license](LICENSE).
+`laravel-db-sync` is an open-sourced software licensed under the **[MPL-2.0](https://opensource.org/licenses/MPL-2.0)**.

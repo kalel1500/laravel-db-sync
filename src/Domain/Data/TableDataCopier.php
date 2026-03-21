@@ -90,11 +90,14 @@ class TableDataCopier
      * Resolve the primary key column name to use with chunkById().
      *
      * Resolution order:
+     *  0. Column specified in chunk_config if it has the defined method.
      *  1. Column whose method is an auto-increment shorthand (id, increments, bigIncrements…)
      *     OR an integer type with autoIncrement=true as second parameter.
      *  2. Column that has a 'primary' modifier (string or array form).
-     *  3. First value of $table->primary_key (composite-key definition).
-     *  4. Name of the very first column defined on the table.
+     *  3. Column specified in chunk_config if it does not have the method defined.
+     *  4. First column of type date.
+     *  5. First value of $table->primary_key (composite-key definition).
+     *  6. Name of the very first column defined on the table.
      */
     protected function resolvePrimaryKeyColumn(DbsyncTable $table): ResolvedPrimaryDto
     {
@@ -125,6 +128,19 @@ class TableDataCopier
             'unsignedMediumInteger',
             'unsignedSmallInteger',
             'unsignedTinyInteger',
+        ];
+
+        $dateMethods = [
+            'timestamp',
+            'dateTime',
+            'date',
+            'timestampTz',
+            'dateTimeTz'
+        ];
+
+        $datePluralMethods = [
+            'timestamps',
+            'timestampsTz',
         ];
 
         $columns = $chunk_column
@@ -165,12 +181,26 @@ class TableDataCopier
             return new ResolvedPrimaryDto($chunk_column, ChunkMethodVo::chunk);
         }
 
-        // 4. Primer valor de primary_key compuesta
+        // 4. Buscar columnas de tipo fecha/timestamp
+        foreach ($columns as $column) {
+            $method = $column->method;
+
+            if (in_array($method, $dateMethods, true)) {
+                return new ResolvedPrimaryDto($column->parameters[0] ?? 'created_at', ChunkMethodVo::chunk);
+            }
+
+            // Si es 'timestamps' (plural), Laravel crea 'created_at' y 'updated_at'
+            if (in_array($method, $datePluralMethods, true)) {
+                return new ResolvedPrimaryDto('created_at', ChunkMethodVo::chunk);
+            }
+        }
+
+        // 5. Primer valor de primary_key compuesta
         if (!empty($table->primary_key[0])) {
             return new ResolvedPrimaryDto($table->primary_key[0], ChunkMethodVo::chunk);
         }
 
-        // 5. Primera columna de la tabla como último recurso
+        // 6. Primera columna de la tabla como último recurso
         $first = $columns->first();
         if ($first) {
             return new ResolvedPrimaryDto($first->parameters[0] ?? 'id', ChunkMethodVo::chunk);

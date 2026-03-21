@@ -130,6 +130,8 @@ class TableDataCopier
             'unsignedTinyInteger',
         ];
 
+        $stringIdMethods = ['uuid', 'ulid'];
+
         $dateMethods = [
             'timestamp',
             'dateTime',
@@ -152,12 +154,19 @@ class TableDataCopier
             $method = $column->method;
             $params = $column->parameters ?? [];
 
+            // Métodos autoincrementales
             if (in_array($method, $incrementMethods, true)) {
                 // 'id' sin parámetros → columna 'id'; con parámetros → $params[0]
                 return new ResolvedPrimaryDto($params[0] ?? 'id', ChunkMethodVo::chunkById);
             }
 
+            // Métodos integer con segundo parámetro true (autoIncrement)
             if (in_array($method, $integerMethods, true) && ($params[1] ?? false) === true) {
+                return new ResolvedPrimaryDto($params[0], ChunkMethodVo::chunkById);
+            }
+
+            // Métodos unicos (UUID / ULID)
+            if (in_array($method, $stringIdMethods, true)) {
                 return new ResolvedPrimaryDto($params[0], ChunkMethodVo::chunkById);
             }
         }

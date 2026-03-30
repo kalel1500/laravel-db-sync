@@ -79,11 +79,11 @@ In `config/database.php`:
 
 #### `dbsync_tables`
 
-| id | source_table | target_table | min_records | active | source_query | use_temporal_table | batch_size | chunk_config | insert_row_by_row | primary_key | unique_keys | indexes            | connection_id |
-|----|--------------|--------------|-------------|--------|--------------|--------------------|------------|--------------|-------------------|-------------|-------------|--------------------|---------------|
-| 1  | users        | users        | 300         | true   | null         | true               | 1000       | null         | false             | null        | null        | null               | 1             |
-| 2  | roles        | roles        | 100         | true   | null         | false              | 500        | null         | false             | null        | null        | null               | 1             |
-| 2  | types        | types        | 1           | true   | null         | false              | 500        | null         | false             | null        | null        | [["name", "slug"]] | 1             |
+| id | source_table | target_table | min_records | active | source_query | use_temporal_table | batch_size | copy_strategy | insert_row_by_row | primary_key | unique_keys | indexes            | connection_id |
+|----|--------------|--------------|-------------|--------|--------------|--------------------|------------|---------------|-------------------|-------------|-------------|--------------------|---------------|
+| 1  | users        | users        | 300         | true   | null         | true               | 1000       | null          | false             | null        | null        | null               | 1             |
+| 2  | roles        | roles        | 100         | true   | null         | false              | 500        | null          | false             | null        | null        | null               | 1             |
+| 2  | types        | types        | 1           | true   | null         | false              | 500        | null          | false             | null        | null        | [["name", "slug"]] | 1             |
 
 > Note on Composite Keys: The `unique_keys` and `indexes` fields must follow an "array of arrays" format: [["col1"], ["col2", "col3"]].
 
@@ -186,31 +186,139 @@ Used when: `dbsync_tables.use_temporal_table = true`
 
 ---
 
-## Memory & Performance Optimization
+## Memory & Performance Optimization (copy Strategy)
 
-The package uses **Database Query Chunking** instead of loading collections into memory. This allows the synchronization of massive tables even in memory-restricted environments (like Docker).
+The package uses **streaming and chunk-based data processing** instead of loading entire collections into memory. This allows synchronizing very large tables even in memory-constrained environments (e.g., Docker containers).
 
-### Automatic Column Resolution
+Depending on the table structure and configuration, the package automatically selects the most efficient strategy to read data from the source.
 
-To process data in chunks, the package must order the source table. It automatically resolves the best column following this priority:
-1. **Primary/Auto-increment Key**: Uses `chunkById()` for maximum performance.
-2. **Timestamp Columns**: Uses `chunk()` ordered by date (e.g., `created_at`).
-3. **Composite Key / First Column**: Fallback strategy using standard `chunk()` with offset.
+>⚠️ If, when populating the package's databases, you find large tables without primary keys or auto-incrementing values, you should consider filling the `dbsync_tables.copy_strategy` field to improve loading performance.
 
-### Custom Chunk Configuration
+### Copy Execution Strategy
 
-You can manually override this behavior in the `dbsync_tables.chunk_config` field using a JSON object:
+Data extraction is driven by a **strategy** system, which determines how rows are read from the source database.
 
-| Key      | Type         | Description                                         | Example       |
-|----------|--------------|-----------------------------------------------------|---------------|
-| `column` | string       | The column name to use for ordering/chunking.       | `"id_user"`   |
-| `method` | string\|null | The Laravel method to use (`chunk` or `chunkById`). | `"chunkById"` |
+The strategy is defined in the `dbsync_tables.copy_strategy` column as a JSON object:
 
-Example usage: `{"column": "custom_uid", "method": "chunkById"}`
+| Key      | Type   | Description                                                                    |
+|----------|--------|--------------------------------------------------------------------------------|
+| `type`   | string | Execution strategy: `chunkById`, `chunk`, or `cursor`.                         |
+| `column` | string | Column used for _ordering/chunking_ (only required for chunk-based strategies) |
 
->⚠️ If, when populating the package's databases, you find large tables without primary keys or auto-incrementing values, you should consider filling the `chunk_config` field to improve loading performance.
->
-> You should use `chunkById` when the column is `unique` and `not null`. Otherwise, you should use the `chunk` method.
+### Available Strategies
+
+#### 1. `chunkById` (Recommended)
+  * Uses incremental queries: `WHERE column > last_value`
+  * Requires a unique, non-null, indexed column
+  * Best balance between:
+    * performance
+    * scalability
+    * reliability
+  * Example: `{ "type": "chunkById", "column": "id_user" }`
+
+#### 2. `chunk`
+  * Uses `LIMIT + OFFSET` pagination with `ORDER BY`
+  * Works with any sortable column
+  * Slower on large datasets due to offset cost
+  * Example: `{ "type": "chunk", "column": "created_at" }`
+
+#### 3. `cursor`
+  * Streams rows one by one using a database cursor
+  * Minimal memory usage
+  * No ordering or chunking required
+  * Example: `{ "type": "cursor"}`
+    > ⚠️ This strategy keeps a long-lived database connection open during the entire process.
+    > 
+    > It is very fast but may be less reliable in environments with strict timeouts, firewalls, or heavy transactional load.
+
+### Strategy Resolution (Default Behavior)
+
+The `copy_strategy` field is fully optional and flexible. Both `type` and `column` can be omitted, partially defined, or fully specified.
+
+Depending on what is provided, the package resolves the execution strategy using the following rules:
+
+#### 1. Explicit Strategy
+
+If `type` is explicitly set to `cursor`, it is always used:
+
+```json
+{ "type": "cursor" }
+```
+
+#### 2. Fully Defined Chunk Strategy
+
+If both `type` and `column` are provided, the package uses them directly:
+
+```json
+{ "type": "chunkById", "column": "id_user" }
+```
+
+```json
+{ "type": "chunk", "column": "created_at" }
+```
+
+> ⚠️ No validation is performed here — ensure the column is compatible with the selected strategy.
+
+#### 3. Automatic Resolution
+
+If the configuration is partial or not defined, the package applies automatic resolution.
+
+> ##### 3.1 No configuration (`null`)
+> 
+> If `copy_strategy` is `null`, the system uses full auto-detection:
+> 1. **Primary / Auto-increment / Unique key** → `chunkById`
+> 2. **Fallback** → `cursor`
+> 
+> ##### 3.2 Only `type` is defined
+> 
+> ###### 3.2.1 `type = chunkById`
+> 
+> The package attempts to resolve the best column using:
+> 1. Primary / auto-increment column
+> 2. Unique non-null column
+> 3. If none is found, it falls back to `cursor`
+> 
+> ###### 3.2.2 `type = chunk`
+> 
+> The package resolves a column using:
+> 1. Timestamp columns (e.g., `created_at`)
+> 2. First column of a composite primary key (if defined)
+> 3. First column in the table definition
+> 
+> ##### 3.2 Only `column` is defined
+> 
+> The package evaluates the column and determines the best strategy:
+> * If the column is `unique and non-null` → `chunkById`
+> * Otherwise → `cursor`
+
+##### Summary
+
+| Configuration                        | Result                                           |
+|--------------------------------------|--------------------------------------------------|
+| `{ "type": "cursor" }`               | Always uses `cursor`                             |
+| `{ "type": "...", "column": "..." }` | Fully manual                                     |
+| `null`                               | Auto (`chunkById` → `cursor`)                    |
+| `{ "type": "chunkById" }`            | Auto column for `chunkById` or fallback `cursor` |
+| `{ "type": "chunk" }`                | Auto column for `chunk`                          |
+| `{ "column": "..." }`                | Auto strategy based on column                    |
+
+
+### Recommendation
+
+* Use `chunkById` + **column** when possible (best performance and stability)
+* Use `cursor` when:
+  * no suitable column exists
+  * working with complex queries
+* Use partial configs only if you understand the fallback behavior
+
+### When to Configure the Strategy Manually
+
+In most cases, the automatic resolution works well. However, manual configuration is recommended in the following scenarios:
+* The table has no primary key or suitable unique index → Use `cursor` or explicitly define a column
+* You know a specific column that provides optimal performance → Define both `type` and `column` to avoid auto-detection
+* You are working with complex queries or subqueries → Use `cursor` to avoid unreliable ordering or chunking issues
+* You want to **control how data is processed** (performance vs reliability trade-offs)→ Override the default behavior with a specific strategy
+* You experience **timeouts, long-running connections, or instability** → Switch between `cursor` and chunk-based strategies depending on your environment
 
 ---
 
@@ -296,21 +404,21 @@ Defines **source and target Laravel connections**.
 
 Defines **what to sync and how**.
 
-| Field              | Description                                                                                    | Type     | Example                                           |
-|--------------------|------------------------------------------------------------------------------------------------|----------|---------------------------------------------------|
-| source_table       | Source table name                                                                              | (string) | _user_                                            |
-| target_table       | Destination table name                                                                         | (string) | _user_                                            |
-| min_records        | Minimum number of records required for the sync to be considered successful                    | (int)    | _1_                                               |
-| active             | Enables or disables synchronization for this table                                             | (bool)   | _true_                                            |
-| source_query       | Optional custom SELECT                                                                         | (string) | _select..._                                       |
-| use_temporal_table | Enables temporal strategy                                                                      | (bool)   | _true_                                            |
-| batch_size         | Insert chunk size                                                                              | (int)    | _500_                                             |
-| chunk_config       | Optional JSON to force a specific chunking strategy.                                           | (int)    | `{"column": "custom_uid", "method": "chunkById"}` |
-| insert_row_by_row  | Forces row-by-row insertion instead of bulk (use only if needed, mainly for Oracle edge cases) | (bool)   | _false_                                           |
-| primary_key        | * Primary key definition                                                                       | (array)  | `["user_id", "rol_id"]`                           |
-| unique_keys        | * Unique constraints                                                                           | (array)  | `[["name", "type"]]`                              |
-| indexes            | * Index definitions                                                                            | (array)  | `[["name", "description"]]`                       |
-| connection_id      | Reference to the connection used by this table                                                 | (int)    | _1_                                               |
+| Field              | Description                                                                                    | Type     | Example                                      |
+|--------------------|------------------------------------------------------------------------------------------------|----------|----------------------------------------------|
+| source_table       | Source table name                                                                              | (string) | _user_                                       |
+| target_table       | Destination table name                                                                         | (string) | _user_                                       |
+| min_records        | Minimum number of records required for the sync to be considered successful                    | (int)    | _1_                                          |
+| active             | Enables or disables synchronization for this table                                             | (bool)   | _true_                                       |
+| source_query       | Optional custom SELECT                                                                         | (string) | _select..._                                  |
+| use_temporal_table | Enables temporal strategy                                                                      | (bool)   | _true_                                       |
+| batch_size         | Insert chunk size                                                                              | (int)    | _500_                                        |
+| copy_strategy      | Optional JSON to force a specific copy strategy.                                               | (int)    | `{"type": "chunkById", "column": "id_user"}` |
+| insert_row_by_row  | Forces row-by-row insertion instead of bulk (use only if needed, mainly for Oracle edge cases) | (bool)   | _false_                                      |
+| primary_key        | * Primary key definition                                                                       | (array)  | `["user_id", "rol_id"]`                      |
+| unique_keys        | * Unique constraints                                                                           | (array)  | `[["name", "type"]]`                         |
+| indexes            | * Index definitions                                                                            | (array)  | `[["name", "description"]]`                  |
+| connection_id      | Reference to the connection used by this table                                                 | (int)    | _1_                                          |
 
 
 > The `primary_key`, `unique_keys`, and `indexes` fields are only required when using composite keys. Otherwise, they must be defined in the `modifiers` field of the `dbsync_columns` table.

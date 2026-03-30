@@ -1,6 +1,40 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.5.0-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.7.0-beta.1...master)
+
+## [v0.6.0-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.5.0-beta.0...v0.6.0-beta.1) - 2026-03-27
+
+### ⚠️ Breaking Changes
+
+* **Migration Update Required**: A new `copy_strategy` JSON column has been added to the `dbsync_tables` table. **Action Required:** If you have already published migrations:
+  * Update your existing `create_dbsync_tables` migration manually
+  * Or run `php artisan migrate:fresh` (⚠️ this will wipe your data)
+  * Or manually add the column: `$table->json('copy_strategy')->nullable();`
+* **Cache Tables Removed**: The internal migration for cache tables has been removed to avoid conflicts with Laravel's native cache migration.
+  * Use `php artisan make:cache-table` if needed.
+
+### Added
+
+* **Memory Optimization (Unbuffered Queries)**: Introduced `disableBuffer()` in `DbsyncSchema`. The copier now automatically disables PDO row buffering (specifically for MySQL and SQL Server) to prevent `memory_limit` exhaustion when syncing large tables.
+* **Execution Strategy System:** Introduced a new `copy_strategy` JSON field in `dbsync_tables` to control how data is copied. Supported strategies:
+  * `chunkById` → index-based batching
+  * `chunk` → offset-based batching
+  * `cursor` → streaming via database cursor
+* **Automatic Strategy Resolution**: Added `resolveStrategy()` to determine the optimal copy strategy when not fully configured. Resolution priority:
+  1. Primary / auto-increment / unique columns → `chunkById`
+  2. Fallback → `cursor`
+* **Cursor-Based Streaming**: Added support for `$query->cursor()` to process large datasets without loading them into memory. Enables efficient processing for tables without suitable indexing.
+
+### Changed
+
+* **Query-Based Processing**: The `TableDataCopier` now performs `chunk()` or `cursor()` directly on the Database Query Builder instead of Laravel Collections, drastically reducing RAM usage.
+* **Adaptive Data Copy Logic**: Data copying now dynamically selects the best execution strategy instead of always using collection chunking.
+* **Source Query Wrapper**: Custom SQL queries are now wrapped as subqueries (`(SELECT ...) as __dbsync_sub__`) to support consistent pagination and ordering.
+* **Relicensed to MPL-2.0**: The package license has been changed from `GPL-3.0-or-later` to `Mozilla Public License 2.0 (MPL-2.0)`. This provides more flexibility for commercial and proprietary projects while ensuring that improvements to the package's core files remain open source.
+
+### Fixed
+
+* **Memory Leaks (OOM)**: Resolved critical "Out of Memory" errors when loading full datasets of large tables into collections.
 
 ## [v0.5.0-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.4.1-beta.1...v0.5.0-beta.0) - 2026-02-27
 

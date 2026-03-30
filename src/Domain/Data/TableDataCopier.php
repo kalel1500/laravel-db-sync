@@ -46,18 +46,39 @@ class TableDataCopier
             return 0;
         }
 
-        $callback = function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
+        $resolvedStrategy = $this->resolveStrategy($table);
+
+        $callbackChunks = function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
             $preparedRows = $this->prepareRows(collect($chunk), $caseTransforms);
             DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
             $total += count($chunk);
         };
 
-        $resolvedCol = $this->resolvePrimaryKeyColumn($table);
-        if ($resolvedCol->method->isChunkById()) {
-            $query->chunkById($table->batch_size, $callback, $resolvedCol->name);
-        } else {
-            $query->orderBy($resolvedCol->name)->chunk($table->batch_size, $callback);
-        }
+        $callbackCursor = function () use ($query, $target, $targetTable, $caseTransforms, $table, &$total) {
+            $batch = [];
+
+            foreach ($query->cursor() as $row) {
+                $data    = $this->transformRow((array)$row, $caseTransforms);
+                $batch[] = $data;
+
+                if (($batchSize = count($batch)) >= $table->batch_size) {
+                    DbsyncSchema::connection($target)->insert($table, $targetTable, $batch);
+                    $total += $batchSize;
+                    $batch = [];
+                }
+            }
+
+            if (! empty($batch)) {
+                DbsyncSchema::connection($target)->insert($table, $targetTable, $batch);
+                $total += count($batch);
+            }
+        };
+
+        match (true) {
+            $resolvedStrategy->isChunkById()   => $query->chunkById($table->batch_size, $callbackChunks, $resolvedStrategy->column),
+            $resolvedStrategy->isCursor()      => $callbackCursor(),
+            $resolvedStrategy->isChunkOffset() => $query->orderBy($resolvedStrategy->column)->chunk($table->batch_size, $callbackChunks),
+        };
 
         return $total;
     }
@@ -67,52 +88,41 @@ class TableDataCopier
      */
     protected function prepareRows(\Illuminate\Support\Collection $chunk, array $caseTransforms): array
     {
-        return $chunk->map(function ($row) use ($caseTransforms) {
-            $data = (array)$row;
-
-            foreach ($caseTransforms as $column => $transform) {
-                if (
-                    array_key_exists($column, $data) &&
-                    is_string($data[$column])
-                ) {
-                    $data[$column] = match ($transform) {
-                        'upper' => mb_strtoupper($data[$column]),
-                        'lower' => mb_strtolower($data[$column]),
-                        default => $data[$column],
-                    };
-                }
-            }
-
-            return $data;
-        })->all();
+        return $chunk->map(fn($row) => $this->transformRow((array)$row, $caseTransforms))->all();
     }
 
-    /**
-     * Resolve the primary key column name to use with chunkById().
-     *
-     * Resolution order:
-     *  0.   Value chunk_config with method.
-     *  1.1. Auto-increment methods (id, increments, bigIncrements…)
-     *  1.2. Primary modifier.
-     *  1.3. Integer type with autoIncrement=true as second parameter.
-     *  1.4. String Ids NO Nullables (UUID, ULID)
-     *  1.5. Unique modifier NO Nullable.
-     *  2.1. Value chunk_config (without method).
-     *  2.2. Date columns.
-     *  2.3. Fallback: Composite-key or first column.
-     */
-    protected function resolvePrimaryKeyColumn(DbsyncTable $table): ResolvedPrimaryDto
+    protected function transformRow(array $data, array $caseTransforms): array
     {
-        $chunk_config = $table->chunk_config;
-        $chunk_column = $chunk_config['column'] ?? null;
-        $chunk_method = $chunk_config['method'] ?? null;
-
-        // 0. Prioridad Manual: Si el usuario fuerza un método, manda el usuario.
-        if ($chunk_method) {
-            return new ResolvedPrimaryDto($chunk_column, ChunkMethodVo::from($chunk_method));
+        foreach ($caseTransforms as $column => $transform) {
+            if (isset($data[$column]) && is_string($data[$column])) {
+                $data[$column] = match ($transform) {
+                    'upper' => mb_strtoupper($data[$column]),
+                    'lower' => mb_strtolower($data[$column]),
+                    default => $data[$column],
+                };
+            }
         }
 
-        // Helper interno o lógica repetible
+        return $data;
+    }
+
+    protected function resolveStrategy(DbsyncTable $table): ResolvedStrategyDto
+    {
+        $strategy = $table->copy_strategy ?? [];
+        $strategy = new ConfigStrategyDto(
+            type  : isset($strategy['type']) ? CopyStrategyTypeVo::from($strategy['type']) : null,
+            column: $strategy['column'] ?? null
+        );
+
+        // Prioridad Manual: Si el usuario fuerza un método, manda el usuario.
+        if ($strategy->isFullyManual()) {
+            return new ResolvedStrategyDto(
+                type  : $strategy->type,
+                column: $strategy->column,
+            );
+        }
+
+        // Internal helper
         $hasModifier = function (DbsyncColumn $col, string $name) {
             $modifiers = collect($col->modifiers ?? []);
             return $modifiers->contains(function ($m) use ($name) {
@@ -121,69 +131,98 @@ class TableDataCopier
             });
         };
 
-        $columns = $chunk_column
-            ? $table->columns->whereLike('parameters', "%$chunk_column%")->sortBy('pivot.order')
-            : $table->columns->sortBy('pivot.order');
+        $columns = is_null($strategy->column) ? $table->columns : $table->columns->filter(fn($col) => ($col->parameters[0] ?? null) === $strategy->column);
+        $columns = $columns->sortBy('pivot.order');
 
-        // --- ESTRATO 1: CHUNK BY ID (Máximo rendimiento, No Nullables) ---
+        if ($strategy->column && $columns->isEmpty()) {
+            throw new \InvalidArgumentException("Column {$strategy->column} not found.");
+        }
 
-        // 1.1 Shorthands de Incremento (id, bigIncrements...)
+        // --- CHUNK OFFSET sin type (Casos menos seguros) ---
+
+        if ($strategy->isChunkOffset()) {
+
+            // Columnas de Fecha (Muy estables para el orden cronológico)
+            $dateMethods = ['timestamp', 'dateTime', 'date', 'timestampTz', 'dateTimeTz', 'timestamps', 'timestampsTz'];
+            foreach ($columns as $col) {
+                if (in_array($col->method, $dateMethods, true)) {
+                    $name = in_array($col->method, ['timestamps', 'timestampsTz']) ? 'created_at' : ($col->parameters[0]);
+                    return new ResolvedStrategyDto(
+                        type  : CopyStrategyTypeVo::CHUNK_OFFSET,
+                        column: $name
+                    );
+                }
+            }
+
+            // Fallback: PK Compuesta o Primera Columna
+            $fallbackName = $table->primary_key[0] ?? ($columns->first()?->parameters[0] ?? 'id');
+
+            return new ResolvedStrategyDto(
+                type  : CopyStrategyTypeVo::CHUNK_OFFSET,
+                column: $fallbackName
+            );
+        }
+
+
+        // --- CHUNK BY ID sin type (Máximo rendimiento, No Nullables) ---
+
+        // Shorthands de Incremento (id, bigIncrements...)
         $incrementMethods = ['id', 'increments', 'bigIncrements', 'mediumIncrements', 'smallIncrements', 'tinyIncrements'];
         foreach ($columns as $col) {
             if (in_array($col->method, $incrementMethods, true)) {
-                return new ResolvedPrimaryDto($col->parameters[0] ?? 'id', ChunkMethodVo::chunkById);
+                return new ResolvedStrategyDto(
+                    type  : CopyStrategyTypeVo::CHUNK_BY_ID,
+                    column: $col->parameters[0] ?? 'id'
+                );
             }
         }
 
-        // 1.2 Modificador 'primary'
+        // Modificador 'primary'
         foreach ($columns as $col) {
             if ($hasModifier($col, 'primary')) {
-                return new ResolvedPrimaryDto($col->parameters[0], ChunkMethodVo::chunkById);
+                return new ResolvedStrategyDto(
+                    type  : CopyStrategyTypeVo::CHUNK_BY_ID,
+                    column: $col->parameters[0]
+                );
             }
         }
 
-        // 1.3 Enteros marcados como autoIncrement explícito ->integer('col', true)
+        // Enteros marcados como autoIncrement explícito ->integer('col', true)
         $integerMethods = ['integer', 'bigInteger', 'mediumInteger', 'smallInteger', 'tinyInteger', 'unsignedInteger', 'unsignedBigInteger', 'unsignedMediumInteger', 'unsignedSmallInteger', 'unsignedTinyInteger',];
         foreach ($columns as $col) {
             if (in_array($col->method, $integerMethods, true) && ($col->parameters[1] ?? false) === true) {
-                return new ResolvedPrimaryDto($col->parameters[0], ChunkMethodVo::chunkById);
+                return new ResolvedStrategyDto(
+                    type  : CopyStrategyTypeVo::CHUNK_BY_ID,
+                    column: $col->parameters[0]
+                );
             }
         }
 
-        // 1.4 String IDs (UUID/ULID) NO Nullables
+        // String IDs (UUID/ULID) NO Nullables
         foreach ($columns as $col) {
             if (in_array($col->method, ['uuid', 'ulid'], true) && !$hasModifier($col, 'nullable')) {
-                return new ResolvedPrimaryDto($col->parameters[0] ?? $col->method, ChunkMethodVo::chunkById);
+                return new ResolvedStrategyDto(
+                    type  : CopyStrategyTypeVo::CHUNK_BY_ID,
+                    column: $col->parameters[0] ?? $col->method
+                );
             }
         }
 
-        // 1.5 Modificador 'unique' NO Nullable
+        // Modificador 'unique' NO Nullable
         foreach ($columns as $col) {
             if ($hasModifier($col, 'unique') && !$hasModifier($col, 'nullable')) {
-                return new ResolvedPrimaryDto($col->parameters[0], ChunkMethodVo::chunkById);
+                return new ResolvedStrategyDto(
+                    type  : CopyStrategyTypeVo::CHUNK_BY_ID,
+                    column: $col->parameters[0]
+                );
             }
         }
 
-        // --- ESTRATO 2: CHUNK NORMAL (Offset/OrderBy, Casos menos seguros) ---
-
-        // 2.1 Columna indicada en chunk_config pero sin método (Fallback de usuario)
-        if ($chunk_column) {
-            return new ResolvedPrimaryDto($chunk_column, ChunkMethodVo::chunk);
-        }
-
-        // 2.2 Columnas de Fecha (Muy estables para el orden cronológico)
-        $dateMethods = ['timestamp', 'dateTime', 'date', 'timestampTz', 'dateTimeTz', 'timestamps', 'timestampsTz'];
-        foreach ($columns as $col) {
-            if (in_array($col->method, $dateMethods, true)) {
-                $name = in_array($col->method, ['timestamps', 'timestampsTz']) ? 'created_at' : ($col->parameters[0]);
-                return new ResolvedPrimaryDto($name, ChunkMethodVo::chunk);
-            }
-        }
-
-        // 2.3 Fallback Final: PK Compuesta o Primera Columna
-        $fallbackName = $table->primary_key[0] ?? ($columns->first()?->parameters[0] ?? 'id');
-
-        return new ResolvedPrimaryDto($fallbackName, ChunkMethodVo::chunk);
+        // --- CURSOR (si no ha encontrado una columna para el "isChunkById" y no se ha configurado el "chunk" explícitamente) ---
+        return new ResolvedStrategyDto(
+            type  : CopyStrategyTypeVo::CURSOR,
+            column: null
+        );
     }
 
     /**

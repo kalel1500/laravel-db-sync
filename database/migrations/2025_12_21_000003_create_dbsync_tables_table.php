@@ -20,7 +20,7 @@ return new class extends Migration
             $table->longText('source_query')->nullable();
             $table->boolean('use_temporal_table');
             $table->unsignedInteger('batch_size')->default(1000);
-            $table->json('chunk_config')->nullable(); // Column to use for chunking. {"column": "id_user", method: chunkById}
+            $table->json('copy_strategy')->nullable(); // Column to use for chunking. {type: chunkById, "column": "id_user"}
             $table->boolean('insert_row_by_row')->default(false);
             $table->json('primary_key')->nullable();
             $table->json('unique_keys')->nullable();

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Thehouseofel\Dbsync\Domain\Data;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Thehouseofel\Dbsync\Infrastructure\Facades\DbsyncSchema;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncColumn;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
@@ -31,14 +33,19 @@ class TableDataCopier
 
         DbsyncSchema::connection($source)->disableBuffer();
 
-        $caseTransforms = $this->resolveCaseTransforms($table);
-        $total          = 0;
+        $columnsMeta = $this->resolveColumnsMeta($table);
+        $context     = new RowProcessingContext(
+            insertableColumns: $this->resolveInsertableColumns($columnsMeta),
+            caseTransforms   : $this->resolveCaseTransforms($columnsMeta),
+            virtualGenerators: $this->resolveVirtualGenerators($columnsMeta),
+        );
+        $total       = 0;
 
         if ($table->source_query) {
             $query = $source->table($source->raw('(' . $table->source_query . ') as __dbsync_sub__'));
         } else {
-            $columns = $this->resolveTargetColumns($table);
-            $query = $source->table($table->source_table)->select($columns);
+            $columns = $this->resolveSelectColumns($columnsMeta);
+            $query   = $source->table($table->source_table)->select($columns);
         }
 
         $numRows = $query->count();
@@ -48,17 +55,17 @@ class TableDataCopier
 
         $resolvedStrategy = $this->resolveStrategy($table);
 
-        $callbackChunks = function ($chunk) use ($target, $targetTable, $caseTransforms, $table, &$total) {
-            $preparedRows = $this->prepareRows(collect($chunk), $caseTransforms);
+        $callbackChunks = function ($chunk) use ($target, $targetTable, $context, $table, &$total) {
+            $preparedRows = $this->prepareRows(collect($chunk), $context);
             DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
             $total += count($chunk);
         };
 
-        $callbackCursor = function () use ($query, $target, $targetTable, $caseTransforms, $table, &$total) {
+        $callbackCursor = function () use ($query, $target, $targetTable, $context, $table, &$total) {
             $batch = [];
 
             foreach ($query->cursor() as $row) {
-                $data    = $this->transformRow((array)$row, $caseTransforms);
+                $data    = $this->transformRow((array)$row, $context);
                 $batch[] = $data;
 
                 if (($batchSize = count($batch)) >= $table->batch_size) {
@@ -86,14 +93,23 @@ class TableDataCopier
     /**
      * Apply case transforms to a collection of rows and return them as a plain array.
      */
-    protected function prepareRows(\Illuminate\Support\Collection $chunk, array $caseTransforms): array
+    protected function prepareRows(Collection $chunk, RowProcessingContext $context): array
     {
-        return $chunk->map(fn($row) => $this->transformRow((array)$row, $caseTransforms))->all();
+        return $chunk->map(fn($row) => $this->transformRow((array)$row, $context))->all();
     }
 
-    protected function transformRow(array $data, array $caseTransforms): array
+    protected function transformRow(array $data, RowProcessingContext $context): array
     {
-        foreach ($caseTransforms as $column => $transform) {
+        // Generadores virtuales
+        foreach ($context->virtualGenerators as $column => $type) {
+            $data[$column] = match ($type) {
+                'uuid' => (string)Str::uuid(),
+                'ulid' => (string)Str::ulid(),
+            };
+        }
+
+        // Case transforms
+        foreach ($context->caseTransforms as $column => $transform) {
             if (isset($data[$column]) && is_string($data[$column])) {
                 $data[$column] = match ($transform) {
                     'upper' => mb_strtoupper($data[$column]),
@@ -103,7 +119,8 @@ class TableDataCopier
             }
         }
 
-        return $data;
+        // Filtrado final
+        return array_intersect_key($data, array_flip($context->insertableColumns));
     }
 
     protected function resolveStrategy(DbsyncTable $table): ResolvedStrategyDto
@@ -225,45 +242,61 @@ class TableDataCopier
         );
     }
 
-    /**
-     * Resolve the list of column names that must be selected from the source table,
-     * based on the destination schema definition.
-     */
-    protected function resolveTargetColumns(DbsyncTable $table): array
+    protected function resolveColumnsMeta(DbsyncTable $table): array
     {
         $columns = [];
 
         foreach ($table->columns->sortBy('pivot.order') as $column) {
+
             $method = $column->method;
             $params = $column->parameters ?? [];
 
-            // CASO 1: Métodos sin parámetros de nombre (Nombres fijos de Laravel)
-            if (in_array($method, ['id', 'timestamps', 'softDeletes', 'rememberToken'])) {
-                switch ($method) {
-                    case 'id':
-                        $columns[] = empty($params) ? 'id' : $params[0];
-                        break;
-                    case 'timestamps':
-                        $columns[] = 'created_at';
-                        $columns[] = 'updated_at';
-                        break;
-                    case 'softDeletes':
-                        $columns[] = 'deleted_at';
-                        break;
-                    case 'rememberToken':
-                        $columns[] = 'remember_token';
-                        break;
-                }
-                continue;
+            $names = [];
+
+            switch ($method) {
+                case 'id':
+                    $names[] = empty($params) ? 'id' : $params[0];
+                    break;
+
+                case 'timestamps':
+                    $names[] = 'created_at';
+                    $names[] = 'updated_at';
+                    break;
+
+                case 'softDeletes':
+                    $names[] = 'deleted_at';
+                    break;
+
+                case 'rememberToken':
+                    $names[] = 'remember_token';
+                    break;
+
+                default:
+                    if (! empty($params[0]) && is_string($params[0])) {
+                        $names[] = $params[0];
+                    }
+                    break;
             }
 
-            // CASO 2: foreignId y similares (Laravel usa el primer parámetro como nombre de columna)
-            if (!empty($params[0]) && is_string($params[0])) {
-                $columns[] = $params[0];
+            foreach ($names as $name) {
+                $columns[$name] = [
+                    'source'         => $column->source,
+                    'source_config'  => $column->source_config ?? [],
+                    'case_transform' => $column->case_transform
+                ];
             }
         }
 
-        return array_values(array_unique($columns));
+        return $columns;
+    }
+
+    protected function resolveSelectColumns(array $columnsMeta): array
+    {
+        return collect($columnsMeta)
+            ->filter(fn($meta) => $meta['source'] === SourceVo::table->value)
+            ->keys()
+            ->values()
+            ->all();
     }
 
     /**
@@ -271,29 +304,35 @@ class TableDataCopier
      *
      * Returns: ['column_name' => 'upper|lower']
      */
-    protected function resolveCaseTransforms(DbsyncTable $table): array
+    protected function resolveCaseTransforms(array $columnsMeta): array
     {
-        $transforms = [];
+        return collect($columnsMeta)
+            ->filter(fn($meta) => !empty($meta['case_transform']))
+            ->mapWithKeys(fn($meta, $name) => [$name => $meta['case_transform']])
+            ->all();
+    }
 
-        foreach ($table->columns as $column) {
-            if (empty($column->case_transform)) {
-                continue;
-            }
+    protected function resolveInsertableColumns(array $columnsMeta): array
+    {
+        return collect($columnsMeta)
+            ->filter(function ($meta) {
+                if ($meta['source'] === SourceVo::table->value) {
+                    return true;
+                }
 
-            $method     = $column->method;
-            $parameters = $column->parameters ?? [];
+                return in_array($meta['source_config']['type'] ?? null, ['uuid', 'ulid'], true);
+            })
+            ->keys()
+            ->values()
+            ->all();
+    }
 
-            $name = match ($method) {
-                'id'                                         => 'id',
-                'timestamps', 'softDeletes', 'rememberToken' => null,
-                default                                      => $parameters[0] ?? null,
-            };
-
-            if ($name) {
-                $transforms[$name] = $column->case_transform;
-            }
-        }
-
-        return $transforms;
+    protected function resolveVirtualGenerators(array $columnsMeta): array
+    {
+        return collect($columnsMeta)
+            ->filter(fn($meta) => $meta['source'] === SourceVo::virtual->value)
+            ->filter(fn($meta) => in_array($meta['source_config']['type'] ?? null, ['uuid', 'ulid'], true))
+            ->mapWithKeys(fn($meta, $name) => [$name => $meta['source_config']['type']])
+            ->all();
     }
 }

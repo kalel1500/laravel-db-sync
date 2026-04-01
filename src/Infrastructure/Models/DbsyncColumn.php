@@ -13,8 +13,9 @@ class DbsyncColumn extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'parameters' => 'array',
-        'modifiers'  => 'array',
+        'parameters'    => 'array',
+        'modifiers'     => 'array',
+        'source_config' => 'array',
     ];
 
     public function tables()

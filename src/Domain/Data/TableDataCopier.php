@@ -122,7 +122,7 @@ class TableDataCopier
             }
         }
 
-        // Filtrado final
+        // Filtrado final !! Si source !== table → transformRow DEBE generar el valor
         return array_intersect_key($data, array_flip($context->insertableColumns));
     }
 

@@ -102,10 +102,12 @@ class TableDataCopier
     {
         // Generadores virtuales
         foreach ($context->virtualGenerators as $column => $type) {
-            $data[$column] = match ($type) {
-                'uuid' => (string)Str::uuid(),
-                'ulid' => (string)Str::ulid(),
-            };
+            if (! array_key_exists($column, $data)) {
+                $data[$column] = match ($type) {
+                    'uuid' => (string)Str::uuid(),
+                    'ulid' => (string)Str::ulid(),
+                };
+            }
         }
 
         // Case transforms

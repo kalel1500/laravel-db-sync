@@ -17,7 +17,20 @@ class TableSchemaBuilder
 {
     use HasShortNames;
 
-    protected const METHODS_WITHOUT_NAME_PARAMETER = ['id', 'timestamps', 'softDeletes', 'rememberToken'];
+    protected const METHODS_WITHOUT_NAME_PARAMETER = [
+        'id',
+        'uuid',
+        'ulid',
+        'timestamps',
+        'timestampsTz',
+        'nullableTimestamps',
+        'nullableTimestampsTz',
+        'datetimes',
+        'softDeletes',
+        'softDeletesTz',
+        'softDeletesDatetime',
+        'rememberToken',
+    ];
 
     public function create(Blueprint $blueprint, DbsyncTable $table): void
     {

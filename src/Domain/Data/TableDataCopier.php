@@ -156,7 +156,7 @@ class TableDataCopier
         if ($strategy->isChunkOffset()) {
 
             // Columnas de Fecha (Muy estables para el orden cronológico)
-            $dateMethods = ['timestamp', 'dateTime', 'date', 'timestampTz', 'dateTimeTz', 'timestamps', 'timestampsTz'];
+            $dateMethods = ['timestamp', 'dateTime', 'date', 'timestampTz', 'dateTimeTz', 'timestamps', 'timestampsTz', 'datetimes'];
             foreach ($columns as $meta) {
                 if (in_array($meta['method'], $dateMethods, true)) {
                     return new ResolvedStrategyDto(
@@ -239,20 +239,35 @@ class TableDataCopier
 
             switch ($method) {
                 case 'id':
-                    $names[] = $firstParam ?? 'id';
+                case 'uuid':
+                case 'ulid':
+                    $names[] = $firstParam ?? $method;
                     break;
 
                 case 'timestamps':
+                case 'timestampsTz':
+                case 'nullableTimestamps':
+                case 'nullableTimestampsTz':
+                case 'datetimes':
                     $names[] = 'created_at';
                     $names[] = 'updated_at';
                     break;
 
                 case 'softDeletes':
+                case 'softDeletesTz':
+                case 'softDeletesDatetime':
                     $names[] = 'deleted_at';
                     break;
 
                 case 'rememberToken':
                     $names[] = 'remember_token';
+                    break;
+
+                case 'morphs':
+                case 'nullableMorphs':
+                    $prefix = $firstParam ?? 'morphable';
+                    $names[] = $prefix . '_id';
+                    $names[] = $prefix . '_type';
                     break;
 
                 default:

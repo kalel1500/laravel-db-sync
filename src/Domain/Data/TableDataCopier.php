@@ -48,9 +48,10 @@ class TableDataCopier
             $query   = $source->table($table->source_table)->select($columns);
         }
 
-        $numRows = $query->count();
-        if ($numRows < 1 || $numRows < ($table->min_records ?? 1)) {
-            return 0;
+        if ($minRecords = $table->min_records) {
+            if ($query->take($minRecords)->get()->count() < $minRecords) {
+                return 0;
+            }
         }
 
         $resolvedStrategy = $this->resolveStrategy($table, $columnsMeta);

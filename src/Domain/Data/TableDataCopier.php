@@ -53,7 +53,7 @@ class TableDataCopier
             return 0;
         }
 
-        $resolvedStrategy = $this->resolveStrategy($table);
+        $resolvedStrategy = $this->resolveStrategy($table, $columnsMeta);
 
         $callbackChunks = function ($chunk) use ($target, $targetTable, $context, $table, &$total) {
             $preparedRows = $this->prepareRows(collect($chunk), $context);
@@ -125,7 +125,7 @@ class TableDataCopier
         return array_intersect_key($data, array_flip($context->insertableColumns));
     }
 
-    protected function resolveStrategy(DbsyncTable $table): ResolvedStrategyDto
+    protected function resolveStrategy(DbsyncTable $table, array $columnsMeta): ResolvedStrategyDto
     {
         $strategy = $table->copy_strategy ?? [];
         $strategy = new ConfigStrategyDto(
@@ -141,20 +141,13 @@ class TableDataCopier
             );
         }
 
-        // Internal helper
-        $hasModifier = function (DbsyncColumn $col, string $name) {
-            $modifiers = collect($col->modifiers ?? []);
-            return $modifiers->contains(function ($m) use ($name) {
-                $method = is_array($m) ? ($m['method'] ?? '') : $m;
-                return $method === $name;
-            });
-        };
+        $columns = collect($columnsMeta)->filter(fn($meta) => $meta['source'] === SourceVo::table->value);
+        if ($strategy->column) {
+            $columns = $columns->filter(fn($meta) => $meta['name'] === $strategy->column);
 
-        $columns = is_null($strategy->column) ? $table->columns : $table->columns->filter(fn($col) => ($col->parameters[0] ?? null) === $strategy->column);
-        $columns = $columns->sortBy('pivot.order');
-
-        if ($strategy->column && $columns->isEmpty()) {
-            throw new \InvalidArgumentException("Column {$strategy->column} not found.");
+            if ($columns->isEmpty()) {
+                throw new \InvalidArgumentException("Column {$strategy->column} not found.");
+            }
         }
 
         // --- CHUNK OFFSET sin type (Casos menos seguros) ---
@@ -163,18 +156,17 @@ class TableDataCopier
 
             // Columnas de Fecha (Muy estables para el orden cronológico)
             $dateMethods = ['timestamp', 'dateTime', 'date', 'timestampTz', 'dateTimeTz', 'timestamps', 'timestampsTz'];
-            foreach ($columns as $col) {
-                if (in_array($col->method, $dateMethods, true)) {
-                    $name = in_array($col->method, ['timestamps', 'timestampsTz']) ? 'created_at' : ($col->parameters[0]);
+            foreach ($columns as $meta) {
+                if (in_array($meta['method'], $dateMethods, true)) {
                     return new ResolvedStrategyDto(
                         type  : CopyStrategyTypeVo::CHUNK_OFFSET,
-                        column: $name
+                        column: $meta['name']
                     );
                 }
             }
 
             // Fallback: PK Compuesta o Primera Columna
-            $fallbackName = $table->primary_key[0] ?? ($columns->first()?->parameters[0] ?? 'id');
+            $fallbackName = $table->primary_key[0] ?? $columns->first()['name'] ?? 'id';
 
             return new ResolvedStrategyDto(
                 type  : CopyStrategyTypeVo::CHUNK_OFFSET,
@@ -185,54 +177,42 @@ class TableDataCopier
 
         // --- CHUNK BY ID sin type (Máximo rendimiento, No Nullables) ---
 
-        // Shorthands de Incremento (id, bigIncrements...)
-        $incrementMethods = ['id', 'increments', 'bigIncrements', 'mediumIncrements', 'smallIncrements', 'tinyIncrements'];
-        foreach ($columns as $col) {
-            if (in_array($col->method, $incrementMethods, true)) {
+        // auto_increment
+        foreach ($columns as $meta) {
+            if ($meta['is_auto_increment']) {
                 return new ResolvedStrategyDto(
                     type  : CopyStrategyTypeVo::CHUNK_BY_ID,
-                    column: $col->parameters[0] ?? 'id'
+                    column: $meta['name']
                 );
             }
         }
 
-        // Modificador 'primary'
-        foreach ($columns as $col) {
-            if ($hasModifier($col, 'primary')) {
+        // primary
+        foreach ($columns as $meta) {
+            if ($meta['is_primary']) {
                 return new ResolvedStrategyDto(
                     type  : CopyStrategyTypeVo::CHUNK_BY_ID,
-                    column: $col->parameters[0]
+                    column: $meta['name']
                 );
             }
         }
 
-        // Enteros marcados como autoIncrement explícito ->integer('col', true)
-        $integerMethods = ['integer', 'bigInteger', 'mediumInteger', 'smallInteger', 'tinyInteger', 'unsignedInteger', 'unsignedBigInteger', 'unsignedMediumInteger', 'unsignedSmallInteger', 'unsignedTinyInteger',];
-        foreach ($columns as $col) {
-            if (in_array($col->method, $integerMethods, true) && ($col->parameters[1] ?? false) === true) {
+        // UUID/ULID
+        foreach ($columns as $meta) {
+            if (in_array($meta['method'], ['uuid', 'ulid'], true) && !$meta['is_nullable']) {
                 return new ResolvedStrategyDto(
                     type  : CopyStrategyTypeVo::CHUNK_BY_ID,
-                    column: $col->parameters[0]
+                    column: $meta['name']
                 );
             }
         }
 
-        // String IDs (UUID/ULID) NO Nullables
-        foreach ($columns as $col) {
-            if (in_array($col->method, ['uuid', 'ulid'], true) && !$hasModifier($col, 'nullable')) {
+        // unique
+        foreach ($columns as $meta) {
+            if ($meta['is_unique'] && !$meta['is_nullable']) {
                 return new ResolvedStrategyDto(
                     type  : CopyStrategyTypeVo::CHUNK_BY_ID,
-                    column: $col->parameters[0] ?? $col->method
-                );
-            }
-        }
-
-        // Modificador 'unique' NO Nullable
-        foreach ($columns as $col) {
-            if ($hasModifier($col, 'unique') && !$hasModifier($col, 'nullable')) {
-                return new ResolvedStrategyDto(
-                    type  : CopyStrategyTypeVo::CHUNK_BY_ID,
-                    column: $col->parameters[0]
+                    column: $meta['name']
                 );
             }
         }
@@ -250,14 +230,15 @@ class TableDataCopier
 
         foreach ($table->columns->sortBy('pivot.order') as $column) {
 
-            $method = $column->method;
-            $params = $column->parameters ?? [];
+            $method     = $column->method;
+            $params     = $column->parameters;
+            $firstParam = $params[0] ?? null;
 
             $names = [];
 
             switch ($method) {
                 case 'id':
-                    $names[] = empty($params) ? 'id' : $params[0];
+                    $names[] = $firstParam ?? 'id';
                     break;
 
                 case 'timestamps':
@@ -274,17 +255,40 @@ class TableDataCopier
                     break;
 
                 default:
-                    if (! empty($params[0]) && is_string($params[0])) {
-                        $names[] = $params[0];
+                    if ($firstParam && is_string($firstParam)) {
+                        $names[] = $firstParam;
                     }
                     break;
             }
+
+
+            // Internal helper
+            $hasModifier = function (DbsyncColumn $col, string $name) {
+                $modifiers = collect($col->modifiers ?? []);
+                return $modifiers->contains(function ($m) use ($name) {
+                    $method = is_array($m) ? ($m['method'] ?? '') : $m;
+                    return $method === $name;
+                });
+            };
+
+            $incrementMethods = ['id', 'increments', 'bigIncrements', 'mediumIncrements', 'smallIncrements', 'tinyIncrements'];
+            $integerMethods   = ['integer', 'bigInteger', 'mediumInteger', 'smallInteger', 'tinyInteger', 'unsignedInteger', 'unsignedBigInteger', 'unsignedMediumInteger', 'unsignedSmallInteger', 'unsignedTinyInteger',];
 
             foreach ($names as $name) {
                 $columns[$name] = [
                     'source'         => $column->source,
                     'source_config'  => $column->source_config ?? [],
-                    'case_transform' => $column->case_transform
+                    'case_transform' => $column->case_transform,
+                    'method'            => $method,
+                    'name'              => $name,
+                    'is_nullable'       => $hasModifier($column, 'nullable'),
+                    'is_unique'         => $hasModifier($column, 'unique'),
+                    'is_primary'        => $hasModifier($column, 'primary'),
+                    'is_auto_increment' => (
+                        in_array($method, $incrementMethods, true) // Autoincrement methods
+                        ||
+                        (in_array($method, $integerMethods, true) && ($params[1] ?? false) === true) // Integer methods with explicit Autoincrement "->integer('col', true)"
+                    ),
                 ];
             }
         }

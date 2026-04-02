@@ -22,4 +22,9 @@ class MySqlDriver extends BaseDriver
     {
         $this->connection->getPdo()->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false);
     }
+
+    public function enableBuffer(): void
+    {
+        $this->connection->getPdo()->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
+    }
 }

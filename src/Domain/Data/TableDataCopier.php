@@ -90,6 +90,8 @@ class TableDataCopier
             $resolvedStrategy->isChunkOffset() => $query->orderBy($resolvedStrategy->column)->chunk($table->batch_size, $callbackChunks),
         };
 
+        DbsyncSchema::connection($source)->enableBuffer();
+
         return $total;
     }
 

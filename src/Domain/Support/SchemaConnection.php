@@ -100,4 +100,9 @@ class SchemaConnection
     {
         $this->driver()->disableBuffer();
     }
+
+    public function enableBuffer(): void
+    {
+        $this->driver()->enableBuffer();
+    }
 }

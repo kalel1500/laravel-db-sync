@@ -57,4 +57,9 @@ abstract class BaseDriver implements SchemaDriver
     {
         // By default, do nothing. Drivers that support disabling buffer should override this method.
     }
+
+    public function enableBuffer(): void
+    {
+        // By default, do nothing. Drivers that support disabling buffer should override this method.
+    }
 }

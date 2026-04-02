@@ -15,4 +15,6 @@ interface SchemaDriver
     public function syncIdentity(string $table, string $column = 'id'): void;
 
     public function disableBuffer(): void;
+
+    public function enableBuffer(): void;
 }

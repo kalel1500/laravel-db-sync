@@ -8,11 +8,11 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\DatabaseManager;
 
 /**
- * @mixin \Thehouseofel\Dbsync\Domain\Support\SchemaOldMan
+ * @mixin \Thehouseofel\Dbsync\Domain\Support\SchemaConnection
  */
-class SchemaOldConn
+class SchemaManager
 {
-    /** @var SchemaOldMan[] */
+    /** @var SchemaConnection[] */
     protected array $resolved = [];
 
     public function __construct(
@@ -21,7 +21,7 @@ class SchemaOldConn
     {
     }
 
-    public function connection(Connection|string|null $connection = null): SchemaOldMan
+    public function connection(Connection|string|null $connection = null): SchemaConnection
     {
         $name = match (true) {
             $connection instanceof Connection => $connection->getName(),
@@ -29,7 +29,7 @@ class SchemaOldConn
             default                           => $connection,
         };
 
-        return $this->resolved[$name] ??= new SchemaOldMan(
+        return $this->resolved[$name] ??= new SchemaConnection(
             connection: ($connection instanceof Connection) ? $connection : $this->db->connection($name)
         );
     }

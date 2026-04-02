@@ -15,7 +15,7 @@ use Thehouseofel\Dbsync\Domain\Support\Drivers\SQLiteDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\SqlServerDriver;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
-class SchemaOldMan
+class SchemaConnection
 {
     protected ?SchemaDriver $driverInstance = null;
 

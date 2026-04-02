@@ -39,9 +39,4 @@ class PostgresDriver extends BaseDriver
             [$sequence, $next]
         );
     }
-
-    public function disableBuffer(): void
-    {
-        $this->connection->getPdo()->setAttribute(\PDO::ATTR_EMULATE_PREPARES, false);
-    }
 }

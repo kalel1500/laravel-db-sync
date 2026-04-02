@@ -50,10 +50,4 @@ class SqlServerDriver extends BaseDriver
             "DBCC CHECKIDENT ('{$tableName}', RESEED, {$next})"
         );
     }
-
-    public function disableBuffer(): void
-    {
-        $value = defined('PDO::SQLSRV_CURSOR_FORWARDONLY') ? \PDO::SQLSRV_CURSOR_FORWARDONLY : 0;
-        $this->connection->getPdo()->setAttribute(\PDO::SQLSRV_ATTR_CURSOR_SCROLL_TYPE, $value);
-    }
 }

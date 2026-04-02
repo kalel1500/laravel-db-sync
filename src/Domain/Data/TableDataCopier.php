@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Thehouseofel\Dbsync\Domain\Data;
 
+use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -58,7 +59,7 @@ class TableDataCopier
 
         $callbackChunks = function ($chunk) use ($target, $targetTable, $context, $table, &$total) {
             $preparedRows = $this->prepareRows(collect($chunk), $context);
-            DbsyncSchema::connection($target)->insert($table, $targetTable, $preparedRows);
+            $this->insert($target, $table, $targetTable, $preparedRows);
             $total += count($chunk);
         };
 
@@ -70,14 +71,14 @@ class TableDataCopier
                 $batch[] = $data;
 
                 if (($batchSize = count($batch)) >= $table->batch_size) {
-                    DbsyncSchema::connection($target)->insert($table, $targetTable, $batch);
+                    $this->insert($target, $table, $targetTable, $batch);
                     $total += $batchSize;
                     $batch = [];
                 }
             }
 
             if (! empty($batch)) {
-                DbsyncSchema::connection($target)->insert($table, $targetTable, $batch);
+                $this->insert($target, $table, $targetTable, $batch);
                 $total += count($batch);
             }
         };
@@ -356,5 +357,22 @@ class TableDataCopier
             ->filter(fn($meta) => in_array($meta['source_config']['type'] ?? null, ['uuid', 'ulid'], true))
             ->mapWithKeys(fn($meta, $name) => [$name => $meta['source_config']['type']])
             ->all();
+    }
+
+    protected function insert(Connection $connection, DbsyncTable $table, string $targetTable, array $rows): void
+    {
+        $hasTextLikeColumns = $table->columns->contains(function ($column) {
+            return in_array($column->method, ['text', 'mediumText', 'longText']);
+        });
+
+        if (DbsyncSchema::connection($connection)->isOracle() && $hasTextLikeColumns && $table->insert_row_by_row) {
+            $connection->transaction(function () use ($connection, $targetTable, $rows) {
+                foreach ($rows as $row) {
+                    $connection->table($targetTable)->insert($row);
+                }
+            });
+        } else {
+            $connection->table($targetTable)->insert($rows);
+        }
     }
 }

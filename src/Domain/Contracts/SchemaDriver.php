@@ -8,6 +8,8 @@ use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
 interface SchemaDriver
 {
+    public function getClass(): string;
+
     public function forceDrop(string $table): void;
 
     public function truncate(string $table, string $column = 'id'): void;

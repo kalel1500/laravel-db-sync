@@ -47,6 +47,11 @@ class SchemaConnection
         return $this->driverInstance = new $class($this->connection);
     }
 
+    public function isOracle(): bool
+    {
+        return $this->driver()->getClass() === OracleDriver::class;
+    }
+
     public function forceDrop(string $table): void
     {
         if (! $this->connection->getSchemaBuilder()->hasTable($table)) {

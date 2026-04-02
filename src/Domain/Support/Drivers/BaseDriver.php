@@ -34,6 +34,11 @@ abstract class BaseDriver implements SchemaDriver
         return $this->connection->getQueryGrammar()->wrap($column);
     }
 
+    public function getClass(): string
+    {
+        return static::class;
+    }
+
     public function forceDrop(string $table): void
     {
         $schema = $this->connection->getSchemaBuilder();

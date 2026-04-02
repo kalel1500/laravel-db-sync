@@ -93,13 +93,13 @@ In `config/database.php`:
 
 Example columns for `users` table:
 
-| id | table_id | method    | parameters      | modifiers                                                   |
-|----|----------|-----------|-----------------|-------------------------------------------------------------|
-| 1  | 1        | id        | null            | null                                                        |
-| 2  | 1        | string    | `["name"]`      | `["nullable"]`                                              |
-| 2  | 1        | string    | `["email", 50]` | `["nullable", "unique"]`                                    |
-| 2  | 1        | boolean   | `["is_active"]` | `[{"method": "default", "parameters": [true]}]`             |
-| 2  | 1        | foreignId | `["type_id"]`   | `[{"method": "constrained", "parameters": ["user_types"]}]` |
+| id | method    | parameters      | modifiers                                                   |
+|----|-----------|-----------------|-------------------------------------------------------------|
+| 1  | id        | null            | null                                                        |
+| 2  | string    | `["name"]`      | `["nullable"]`                                              |
+| 3  | string    | `["email", 50]` | `["nullable", "unique"]`                                    |
+| 4  | boolean   | `["is_active"]` | `[{"method": "default", "parameters": [true]}]`             |
+| 5  | foreignId | `["type_id"]`   | `[{"method": "constrained", "parameters": ["user_types"]}]` |
 
 > Note on modifiers: These can be arrays of strings or objects with the fields `method` and `params` if you need to pass parameters to the modifier. For example, passing the table name in the constrained modifier.
 
@@ -322,6 +322,74 @@ In most cases, the automatic resolution works well. However, manual configuratio
 
 ---
 
+## Column Sources & Virtual Columns (Advanced)
+
+Each column can define **where its value comes from** using the `source` and `source_config` fields.
+
+This allows you to mix:
+- Data coming from the source database
+- Values generated at runtime
+
+### `source` column
+
+Defines the origin of the column value:
+
+| Value   | Description                                                                 |
+|---------|-----------------------------------------------------------------------------|
+| table   | Value is read from the source database (default behavior)                   |
+| virtual | Value is generated during the sync process and not selected from the source |
+
+### `source_config` column
+
+Optional JSON field used when `source = virtual`.
+
+Currently supported:
+
+```json
+{ "type": "uuid" }
+````
+
+```json
+{ "type": "ulid" }
+```
+
+### Example
+
+| method | parameters       | source  | source_config    |
+|--------|------------------|---------|------------------|
+| id     | null             | table   | null             |
+| string | ["name"]         | table   | null             |
+| uuid   | ["virtual_id"]   | virtual | null             |
+| uuid   | ["virtual_uuid"] | virtual | {"type": "uuid"} |
+
+
+### Behavior
+
+* Columns with `source = table`:
+  * Are included in the SELECT query
+  * Must exist in the source table or query
+* Columns with `source = virtual`:
+  * Are NOT included in the SELECT query
+  * Are generated during row processing
+  * If `source_config` is null, the column will be ignored during insertion. This means that the database must have a default value, such as an auto-incrementing ID. 
+  * If `source_config.type` is defined, the system will attempt to generate the value at runtime based on the specified type (e.g., `uuid` or `ulid`).
+
+### Important Notes
+
+* Virtual columns are generated **per row during sync**
+* If a column is not selected and not generated, it will not be inserted
+* Virtual values **do not overwrite existing values** if already present in the dataset (e.g. when using `source_query`)
+* This mechanism allows defining **columns that exist only in the destination schema**
+
+### When to use this
+
+Use virtual columns when:
+* You need to generate UUID/ULID identifiers or other columns with default values (like auto-increment IDs or timestamps) that do not exist in the source
+* The source system does not provide a required column
+* You want to enrich incoming data without modifying the source query
+
+---
+
 ## Data Insertion Mode
 
 By default, the package uses **bulk inserts** for maximum performance.
@@ -436,6 +504,8 @@ Defines **table structure using Laravel schema semantics**.
 | method           | Blueprint method                                                                                                                        | (string) | _string_, _integer_, _decimal_, _foreignId_, _etc_.                                            |
 | parameters       | Method parameters                                                                                                                       | (array)  | `["name", 100]` \|\| `["user_id"]`, _etc_.                                                     |
 | modifiers        | Column modifiers                                                                                                                        | (array)  | `["nullable", "unique"]` \|\| `[{"method": "constrained", "parameters": ["user_id"]}]`, _etc_. |
+| source           | Defines where the column value comes from (`table` or `virtual`)                                                                        | (string) | _table_ / _virtual_                                                                            |
+| source_config    | Optional JSON configuration for virtual columns (e.g. `{ "type": "uuid" }`)                                                             | (json)   | _{"type":"uuid"}_                                                                              |
 | self_referencing | Indicates whether the foreign key references the table itself. For example, `comment_id` in `comments`.                                 | (bool)   | _true_                                                                                         |
 | case_transform   | Indicate whether copying the data will convert it to uppercase or lowercase.                                                            | (string) | _upper_ \| _lower_                                                                             |
 | code             | This column does nothing during synchronization. It's only there to help populate the `dbsync_column_table` table with IDs more easily. | (string) | _user1_                                                                                        |

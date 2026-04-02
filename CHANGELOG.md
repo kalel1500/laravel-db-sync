@@ -2,6 +2,94 @@
 
 ## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.7.0-beta.1...master)
 
+## [v0.7.0-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.6.0-beta.1...v0.7.0-beta.1) - 2026-04-02
+
+### ⚠️ Breaking Changes
+
+* Migrations have been modified
+  * Added new columns `source` and `source_config` to the `dbsync_columns` table.
+    * `source` defines where the column value comes from (`table` or `virtual`).
+    * `source_config` stores generator configuration (e.g. `{ "type": "uuid" }`).
+  * Renamed `insert_row_by_row` to `has_large_text_values_in_oracle`.
+* **Action Required**: 
+  * Update your existing migrations manually
+  * Or run `php artisan migrate:fresh` (⚠️ this will wipe your data)
+  * Or manually add and rename the columns:
+    * add `source` in `dbsync_columns`: `$table->string('source')->default('table');`
+    * add `source_config` in `dbsync_columns`: `$table->json('source_config')->nullable();`
+    * rename `insert_row_by_row` to `has_large_text_values_in_oracle` in `dbsync_tables`
+
+### Added
+
+* New `SchemaFactory` interface for the `SchemaManager` class.
+
+### Changed
+
+* Internal `DbsyncSchema` refactor:
+  * The `SchemaFactory` interface is now used in the `getFacadeAccessor` of the `DbsyncSchema` facade.
+  * Renamed clases:
+    * `SchemaManager` → `SchemaConnection`
+    * `SchemaConnection` → `SchemaManager`
+* A large part of the `TableDataCopier` class has been remade:
+  * **Refactored to a metadata-driven architecture**:
+    * Introduced a centralized `resolveColumnsMeta()` method that normalizes all column definitions into a unified structure.
+    * All column-related logic (selection, insertion, transformations, strategy resolution) now relies on this metadata instead of raw model access.
+  * **Virtual Columns Support**:
+    * Columns can now be excluded from the source query (`SELECT`) and generated dynamically during processing.
+    * `transformRow()` now handles:
+      * Virtual value generation (e.g., UUID/ULID)
+      * Case transformations
+      * Final filtering of insertable columns
+    * Ensures strict control over which columns are inserted vs computed.
+  * **Introduced row processing context:**
+    * Added `RowProcessingContext` to avoid recalculating per-row logic.
+    * Precomputes:
+      * insertable columns
+      * case transformations
+      * virtual generators
+    * Eliminates repeated computation inside loops and improves performance consistency.
+  * **Strategy resolution now uses normalized metadata:**
+    * `resolveStrategy()` no longer depends on raw `DbsyncColumn`.
+    * Uses enriched metadata (e.g. `is_primary`, `is_auto_increment`, `is_nullable`, etc.).
+    * Automatically ignores virtual columns when selecting chunking strategies.
+  * **Improved handling of Laravel Blueprint methods:**
+    * Added support for additional schema methods:
+      * `uuid`, `ulid`
+      * `nullableTimestamps`, `nullableTimestampsTz`, `datetimes`
+      * `softDeletesTz`, `softDeletesDatetime`
+      * `morphs`, `nullableMorphs`
+    * Ensures correct column name resolution in all cases.
+  * **Minimum Records Check Optimized**:
+    * Now only executed when defined.
+    * Uses a limited query instead of full `COUNT(*)`, reducing query cost on large datasets.
+  * **Insert Logic Refactored**:
+    * Moved insert responsibility from `DbsyncSchema` into `TableDataCopier::insert()`.
+    * Decouples schema-level utilities from table-specific logic.
+  * **Buffer Handling Lifecycle Improved**:
+    * Explicitly re-enables PDO buffering after processing (`enableBuffer()`), ensuring connection state consistency.
+  * **Renamed insert configuration flag:**
+    * `insert_row_by_row` → `has_large_text_values_in_oracle`
+    * Makes intent explicit and avoids exposing implementation details to users.
+
+### Removed
+
+* The `insert` method of the `SchemaConnection` (which was accessed through the `DbsyncSchema` facade) has been removed.
+  * The three methods for inserting drivers have also been removed:
+    * `insertBulk`
+    * `insertRowByRow`
+    * `insertAuto`
+
+### Fixed
+
+* **Strategy Resolution Edge Cases**:
+    * Fixed incorrect behavior when resolving strategies with filtered columns or partial configuration.
+    * Ensured invalid column references throw explicit exceptions.
+* **Performance Issues in Large Datasets**:
+    * Avoided unnecessary full table scans when `min_records` is not configured.
+* The definition of the `disableBuffer` method has been removed from the `PostgresDriver` and `SqlServerDriver` drivers because those engines are lazy by default. You only need to define the method in the `MySQLDriver` driver.
+
+---
+
 ## [v0.6.0-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.5.0-beta.0...v0.6.0-beta.1) - 2026-03-27
 
 ### ⚠️ Breaking Changes

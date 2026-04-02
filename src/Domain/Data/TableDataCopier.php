@@ -365,7 +365,7 @@ class TableDataCopier
             return in_array($column->method, ['text', 'mediumText', 'longText']);
         });
 
-        if (DbsyncSchema::connection($connection)->isOracle() && $hasTextLikeColumns && $table->insert_row_by_row) {
+        if (DbsyncSchema::connection($connection)->isOracle() && $hasTextLikeColumns && $table->has_large_text_values_in_oracle) {
             $connection->transaction(function () use ($connection, $targetTable, $rows) {
                 foreach ($rows as $row) {
                     $connection->table($targetTable)->insert($row);

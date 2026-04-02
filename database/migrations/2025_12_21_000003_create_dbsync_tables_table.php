@@ -21,7 +21,7 @@ return new class extends Migration
             $table->boolean('use_temporal_table');
             $table->unsignedInteger('batch_size')->default(1000);
             $table->json('copy_strategy')->nullable(); // Column to use for chunking. {type: chunkById, "column": "id_user"}
-            $table->boolean('insert_row_by_row')->default(false);
+            $table->boolean('has_large_text_values_in_oracle')->default(false);
             $table->json('primary_key')->nullable();
             $table->json('unique_keys')->nullable();
             $table->json('indexes')->nullable();

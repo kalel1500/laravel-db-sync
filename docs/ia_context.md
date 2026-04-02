@@ -35,7 +35,7 @@ Paquete de Laravel para:
         * `use_temporal_table`
         * `batch_size`
         * `copy_strategy`
-        * `insert_row_by_row`
+        * `has_large_text_values_in_oracle`
         * `primary_key` (compuesta)
         * `unique_keys` (compuestos)
         * `indexes` (compuestos)

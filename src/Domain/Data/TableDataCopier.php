@@ -50,7 +50,8 @@ class TableDataCopier
         }
 
         if ($minRecords = $table->min_records) {
-            if ($query->take($minRecords)->get()->count() < $minRecords) {
+            $queryCopy = clone $query;
+            if ($queryCopy->take($minRecords)->get()->count() < $minRecords) {
                 return 0;
             }
         }

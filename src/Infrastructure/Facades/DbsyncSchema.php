@@ -12,7 +12,6 @@ use Thehouseofel\Dbsync\Domain\Contracts\SchemaFactory;
  * @method static void forceDrop(string $table)
  * @method static void truncate(array $tables)
  * @method static void syncIdentity(string $table, string $column = 'id')
- * @method static void insert(\Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable $table, string $targetTable, array $rows)
  *
  * @see \Thehouseofel\Dbsync\Domain\Support\SchemaManager
  */

@@ -96,15 +96,6 @@ class SchemaConnection
         $this->driver()->syncIdentity($table, $column);
     }
 
-    public function insert(DbsyncTable $table, string $targetTable, array $rows): void
-    {
-        if ($table->insert_row_by_row) {
-            $this->driver()->insertAuto($table, $targetTable, $rows);
-        } else {
-            $this->driver()->insertBulk($targetTable, $rows);
-        }
-    }
-
     public function disableBuffer(): void
     {
         $this->driver()->disableBuffer();

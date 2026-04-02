@@ -53,25 +53,6 @@ abstract class BaseDriver implements SchemaDriver
         $this->connection->table($table)->truncate();
     }
 
-    public function insertBulk(string $targetTable, array $rows): void
-    {
-        $this->connection->table($targetTable)->insert($rows);
-    }
-
-    public function insertRowByRow(string $targetTable, array $rows): void
-    {
-        $this->connection->transaction(function () use ($targetTable, $rows) {
-            foreach ($rows as $row) {
-                $this->connection->table($targetTable)->insert($row);
-            }
-        });
-    }
-
-    public function insertAuto(DbsyncTable $table, string $targetTable, array $rows): void
-    {
-        $this->insertBulk($targetTable, $rows);
-    }
-
     public function disableBuffer(): void
     {
         // By default, do nothing. Drivers that support disabling buffer should override this method.

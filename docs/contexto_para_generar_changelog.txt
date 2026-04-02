@@ -1,0 +1,14 @@
+Ahora necesito que me ayudes a escribir el CHANGELOG para la nueva release del paquete (en ingles).
+Al ser un paquete público debe quedar claro para los usuarios que cambios se han hecho, cuáles son las nuevas funcionalidades, cuáles son los bugs que se han corregido, etc.
+
+Yo suelo poner estos apartados:
+- Breaking Changes: solo para explicar los cambios que rompen la compatibilidad y que acciones deben tomar los usuarios para adaptarse a estos cambios. En este caso...
+- Added: Para las nuevas funcionalidades que se han añadido. En este caso...
+- Changed: Para los cambios que se han hecho en funcionalidades ya existentes. En este caso...
+- Removed: Clases o funcionalidades que se han eliminado.  En este caso...
+- Fixed: Corrección de bugs. Supongo que sí que hemos arreglado cosas, pero lo que no me gusta es repetir la misma explicación si ya está en el Changed. Repártelo como consideres, pero que no haya el mismo cambio en dos apartados diferentes.
+
+
+Y para que seas realmente consciente de todos los cambios aplicados (y no te lies con cosas que me has dicho, pero no he aplicado) te dejo la clase completa antes y después del cambio:
+
+Recuerda que el CHANGELOG debe estar en inglés, ya que es un paquete público y quiero que llegue a la mayor cantidad de personas.

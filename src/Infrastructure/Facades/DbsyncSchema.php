@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Thehouseofel\Dbsync\Infrastructure\Facades;
 
 use Illuminate\Support\Facades\Facade;
+use Thehouseofel\Dbsync\Domain\Contracts\SchemaFactory;
 
 /**
  * @method static \Thehouseofel\Dbsync\Domain\Support\SchemaManager connection(\Illuminate\Database\Connection|string|null $connection)
@@ -19,6 +20,6 @@ class DbsyncSchema extends Facade
 {
     protected static function getFacadeAccessor()
     {
-        return 'thehouseofel.dbsync.schemaConnection';
+        return SchemaFactory::class;
     }
 }

@@ -6,11 +6,12 @@ namespace Thehouseofel\Dbsync\Domain\Support;
 
 use Illuminate\Database\Connection;
 use Illuminate\Database\DatabaseManager;
+use Thehouseofel\Dbsync\Domain\Contracts\SchemaFactory;
 
 /**
  * @mixin \Thehouseofel\Dbsync\Domain\Support\SchemaConnection
  */
-class SchemaManager
+class SchemaManager implements SchemaFactory
 {
     /** @var SchemaConnection[] */
     protected array $resolved = [];

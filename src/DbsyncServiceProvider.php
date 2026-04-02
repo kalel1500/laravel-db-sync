@@ -7,6 +7,7 @@ namespace Thehouseofel\Dbsync;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 use Thehouseofel\Dbsync\Domain\Contracts\DbsyncTableRepository;
+use Thehouseofel\Dbsync\Domain\Contracts\SchemaFactory;
 use Thehouseofel\Dbsync\Domain\Support\SchemaManager;
 use Thehouseofel\Dbsync\Infrastructure\Console\Commands\DbsyncRunCommand;
 use Thehouseofel\Dbsync\Infrastructure\Repositories\Eloquent\EloquentDbsyncTableRepository;
@@ -28,7 +29,7 @@ class DbsyncServiceProvider extends ServiceProvider
     protected function registerSingletons(): void
     {
         $this->app->singleton(DbsyncTableRepository::class, EloquentDbsyncTableRepository::class);
-        $this->app->singleton('thehouseofel.dbsync.schemaConnection', SchemaManager::class);
+        $this->app->singleton(SchemaFactory::class, SchemaManager::class);
     }
 
     public function boot(): void

@@ -43,7 +43,7 @@ class TableDataCopier
         $total       = 0;
 
         if ($table->source_query) {
-            $query = $source->table($source->raw('(' . $table->source_query . ') as __dbsync_sub__'));
+            $query = $source->table($source->raw('(' . $table->source_query . ')'));
         } else {
             $columns = $this->resolveSelectColumns($columnsMeta);
             $query   = $source->table($table->source_table)->select($columns);

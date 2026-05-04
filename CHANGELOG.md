@@ -1,6 +1,12 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.7.0-beta.1...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.7.0-beta.2...master)
+
+## [v0.7.0-beta.2](https://github.com/kalel1500/laravel-db-sync/compare/v0.7.0-beta.1...v0.7.0-beta.2) - 2026-05-04
+
+### Fixed
+
+* The `alias` has been removed from the `TableDataCopier` query (when the `source_query` field is not null) because that syntax does not exist.
 
 ## [v0.7.0-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.6.0-beta.1...v0.7.0-beta.1) - 2026-04-02
 

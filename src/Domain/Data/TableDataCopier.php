@@ -122,8 +122,9 @@ class TableDataCopier
         foreach ($context->caseTransforms as $column => $transform) {
             if (isset($data[$column]) && is_string($data[$column])) {
                 $data[$column] = match ($transform) {
-                    'upper' => mb_strtoupper($data[$column]),
-                    'lower' => mb_strtolower($data[$column]),
+                    'upper'         => mb_strtoupper($data[$column]),
+                    'lower'         => mb_strtolower($data[$column]),
+                    'null_if_empty' => null_if_empty($data[$column]),
                     default => $data[$column],
                 };
             }

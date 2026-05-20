@@ -507,8 +507,18 @@ Defines **table structure using Laravel schema semantics**.
 | source           | Defines where the column value comes from (`table` or `virtual`)                                                                        | (string) | _table_ / _virtual_                                                                            |
 | source_config    | Optional JSON configuration for virtual columns (e.g. `{ "type": "uuid" }`)                                                             | (json)   | _{"type":"uuid"}_                                                                              |
 | self_referencing | Indicates whether the foreign key references the table itself. For example, `comment_id` in `comments`.                                 | (bool)   | _true_                                                                                         |
-| case_transform   | Indicate whether copying the data will convert it to uppercase or lowercase.                                                            | (string) | _upper_ \| _lower_                                                                             |
+| case_transform   | Optional transformation applied to the column value during sync. Accepts `upper`, `lower`, or any helper provided by the package.       | (string) | _upper_ \| _lower_ \| _null_if_empty_                                                          |
 | code             | This column does nothing during synchronization. It's only there to help populate the `dbsync_column_table` table with IDs more easily. | (string) | _user1_                                                                                        |
+
+> **Available values for `case_transform`:**
+>
+> | Value           | Behavior                                                             |
+> |-----------------|----------------------------------------------------------------------|
+> | `upper`         | Converts the value to uppercase using `mb_strtoupper()`              |
+> | `lower`         | Converts the value to lowercase using `mb_strtolower()`              |
+> | `null_if_empty` | Converts empty strings to `null` (provided by this package's helper) |
+>
+> Any unrecognized value leaves the original data unchanged.
 
 ---
 

@@ -26,6 +26,7 @@
             "Thehouseofel\\Dbsync\\Database\\Seeders\\": "database/seeders"
         },
         "files": [
+            "src/helpers.php"
         ]
     },
     "autoload-dev": {

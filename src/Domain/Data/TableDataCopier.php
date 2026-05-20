@@ -12,6 +12,7 @@ use Thehouseofel\Dbsync\Infrastructure\Facades\DbsyncSchema;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncColumn;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
+use Thehouseofel\Kalion\Core\Infrastructure\Laravel\Facades\ConsoleOutput;
 
 class TableDataCopier
 {
@@ -29,6 +30,8 @@ class TableDataCopier
         string           $targetTable,
     ): int
     {
+        ConsoleOutput::info("Starting copy of table $table->target_table...");
+
         $source = DB::connection($connection->source_connection);
         $target = DB::connection($connection->target_connection);
 
@@ -60,28 +63,36 @@ class TableDataCopier
         }
 
         $resolvedStrategy = $this->resolveStrategy($table, $columnsMeta);
+        ConsoleOutput::info("Copy strategy is " . $resolvedStrategy->type->value);
 
-        $callbackChunks = function ($chunk) use ($target, $targetTable, $context, $table, &$total) {
+        $j = 1;
+        $callbackChunks = function ($chunk) use ($target, $targetTable, $context, $table, &$total, &$j) {
             $preparedRows = $this->prepareRows(collect($chunk), $context);
+            ConsoleOutput::info("[$j] Inserting batch of $table->batch_size records...(chunk)");
             $this->insert($target, $table, $targetTable, $preparedRows);
             $total += count($chunk);
+            $j++;
         };
 
         $callbackCursor = function () use ($query, $target, $targetTable, $context, $table, &$total) {
             $batch = [];
 
+            $i = 1;
             foreach ($query->cursor() as $row) {
                 $data    = $this->transformRow((array)$row, $context);
                 $batch[] = $data;
 
                 if (($batchSize = count($batch)) >= $table->batch_size) {
+                    ConsoleOutput::info("[$i] Inserting batch of $batchSize records...(cursor)");
                     $this->insert($target, $table, $targetTable, $batch);
                     $total += $batchSize;
                     $batch = [];
+                    $i++;
                 }
             }
 
             if (! empty($batch)) {
+                ConsoleOutput::info("[$i] Inserting lasts records...(cursor)");
                 $this->insert($target, $table, $targetTable, $batch);
                 $total += count($batch);
             }

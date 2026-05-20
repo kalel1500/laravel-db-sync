@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('dbsync_tables', function (Blueprint $table) {
             $table->id();
-            $table->string('source_table');
+            $table->string('source_table')->nullable();
             $table->string('target_table');
             $table->unsignedInteger('min_records')->nullable();
             $table->boolean('active')->default(true);

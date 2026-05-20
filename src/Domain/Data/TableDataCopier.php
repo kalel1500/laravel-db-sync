@@ -45,6 +45,9 @@ class TableDataCopier
         if ($table->source_query) {
             $query = $source->table($source->raw('(' . $table->source_query . ')'));
         } else {
+            if (is_null($table->source_table)) {
+                throw new \InvalidArgumentException('The dbsync_tables table does not have source_table.');
+            }
             $columns = $this->resolveSelectColumns($columnsMeta);
             $query   = $source->table($table->source_table)->select($columns);
         }

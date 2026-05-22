@@ -1,6 +1,32 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.7.0-beta.2...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.8.0-beta.1...master)
+
+## [v0.8.0-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.7.0-beta.2...v0.8.0-beta.1) - 2026-05-22
+
+### ⚠️ Breaking Changes
+
+* Migrations have been modified
+  * The `source_table` column of the `dbsync_tables` table has been made nullable
+  * **Action Required**:
+    * Update your existing migrations manually
+    * Or run `php artisan migrate:fresh` (⚠️ this will wipe your data)
+    * Or manually make the `source_table` column _nullable_:
+      * modify `source_table` in `dbsync_tables`: ` $table->string('source_table')->nullable();`
+* The `dbsync:run` command now displays progress steps in the console by default.
+  * Use `--silent` to restore the previous silent behavior.
+
+### Added
+
+* New helper `null_if_empty` that returns null if it receives an empty string.
+
+### Changed
+
+* (breaking) The steps of the `TableDataCopier` are now displayed in the console.
+  * The `kalel1500/kalion` package is now required.
+  * New `-silent` option in the `dbsync:run` command to prevent the `TableDataCopier` progress from being displayed in the console.
+* The value `null_if_empty` is now allowed in the `case_transform` field in the `dbsync_columns` table to convert fields that are empty strings to null.
+* (breaking) The `source_table` column of the `dbsync_tables` table has been made nullable.
 
 ## [v0.7.0-beta.2](https://github.com/kalel1500/laravel-db-sync/compare/v0.7.0-beta.1...v0.7.0-beta.2) - 2026-05-04
 

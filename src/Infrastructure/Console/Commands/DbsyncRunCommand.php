@@ -17,7 +17,8 @@ class DbsyncRunCommand extends Command
      */
     protected $signature = 'dbsync:run
                             {--connection= : The ID of the connection to sync}
-                            {--table= : The ID of the table to sync}';
+                            {--table= : The ID of the table to sync}
+                            {--silent : Do not display copy progress in console }';
 
     /**
      * The console command description.
@@ -31,7 +32,9 @@ class DbsyncRunCommand extends Command
      */
     public function handle(): void
     {
-        ConsoleOutput::setOutput($this->output);
+        if (! $this->option('silent')) {
+            ConsoleOutput::setOutput($this->output);
+        }
 
         $connectionId = $this->option('connection');
         $tableId      = $this->option('table');

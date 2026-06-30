@@ -17,12 +17,12 @@ class DatabaseSyncRunner
     /**
      * @param iterable<DbsyncTable> $tables
      */
-    public function run(iterable $tables): void
+    public function run(iterable $tables, bool $force): void
     {
         foreach ($tables as $table) {
             $connection = $table->connection;
 
-            if (! $connection->active || ! $table->active) {
+            if (! $force && (! $connection->active || ! $table->active)) {
                 continue;
             }
 

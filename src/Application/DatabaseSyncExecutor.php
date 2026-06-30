@@ -28,6 +28,6 @@ class DatabaseSyncExecutor
         };
 
         // Full sync
-        $this->runner->run($tables);
+        $this->runner->run($tables, force: !is_null($tableId) || !is_null($connectionId));
     }
 }

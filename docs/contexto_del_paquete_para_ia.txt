@@ -1,0 +1,21 @@
+Este paquete me permite definir conexiones tablas y columnas en varias tablas y despues ejecutar un comando que recorre cada tabla y la crea en su conexión destino según la estructura definida. Después se conecta al origen, hace un select de los datos y los inserta en el destino.
+Es decir que para crear solo le la definición y usa el blueprint de Laravel.
+Y para insertar se conecta a una conexión y solo hace un select por lo que el origen y el destino no hace falta que sean el mismo motor.
+
+La cosa es hay ciertas acciones como desactivar fks hacer truncates y reestablecer el autoincrement, que son diferentes en cada motor y por eso he creado un patron "strategy" que tiene una clase por cada motor.
+
+Por ahora tengo los siguientes:
+-BaseDriver.php
+-MariaDbDriver.php
+-MySqlDriver.php
+-OracleDriver.php
+-PostgresDriver.php
+-SQLiteDriver.php
+-SqlServerDriver.php
+
+Como ves soporto el motor de oracle aunque no sea nativo de laravel ya que asumo que el usuario ha instalado el paquete "yajra/laravel-oci8" aunque yo no lo tengo como dependencia en el composer (ya que es raro usarlo y la mayoría de los usuarios no lo querrán instalar).
+
+Pues ahora necesito soportar tambien BD2 y he visto que tambien hay un paquete de Laravel:
+https://github.com/BWICompanies/db2-driver/blob/master/src/Schema/DB2Blueprint.php
+
+¿Me ayudas a crear el driver para DB2 siguiendo el patrón que ya tengo para los otros motores?

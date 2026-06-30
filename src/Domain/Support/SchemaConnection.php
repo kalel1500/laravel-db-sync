@@ -72,9 +72,9 @@ class SchemaConnection
 
         try {
             foreach ($tables as $table) {
-                $table  = is_string($table) ? $table : $table['name'];
-                $column = is_string($table) ? 'id' : $table['column'] ?? 'id';
-                $this->driver()->truncate($table, $column);
+                $tableName = is_string($table) ? $table : $table['name'];
+                $column    = is_string($table) ? 'id' : $table['column'] ?? 'id';
+                $this->driver()->truncate($tableName, $column);
             }
         } finally {
             $this->tryEnableForeignKeyConstraints($schema, $tables);

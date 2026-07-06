@@ -6,7 +6,7 @@ namespace Thehouseofel\Dbsync\Infrastructure\Console\Commands;
 
 use Illuminate\Console\Command;
 use Thehouseofel\Dbsync\Infrastructure\Jobs\RunDatabaseSyncJob;
-use Thehouseofel\Kalion\Core\Infrastructure\Laravel\Facades\ConsoleOutput;
+use Thehouseofel\Kalion\Core\Infrastructure\Support\Facades\ConsoleOutput;
 
 class DbsyncRunCommand extends Command
 {

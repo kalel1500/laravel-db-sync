@@ -12,7 +12,7 @@ use Thehouseofel\Dbsync\Infrastructure\Facades\DbsyncSchema;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncColumn;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncConnection;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
-use Thehouseofel\Kalion\Core\Infrastructure\Laravel\Facades\ConsoleOutput;
+use Thehouseofel\Kalion\Core\Infrastructure\Support\Facades\ConsoleOutput;
 
 class TableDataCopier
 {

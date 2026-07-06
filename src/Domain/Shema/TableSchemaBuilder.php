@@ -191,8 +191,8 @@ class TableSchemaBuilder
     {
         $driver = $connection->getDriverName();
 
-        // Oracle, Postgres y SQL Server eliminan o requieren eliminar las constraints físicamente
-        return in_array($driver, ['oracle', 'oci8', 'pgsql', 'sqlsrv']);
+        // Oracle, Postgres, SQL Server y DB2 eliminan o pueden requerir eliminar constraints físicamente.
+        return in_array($driver, ['oracle', 'oci8', 'pgsql', 'sqlsrv', 'db2', 'ibmi', 'ibm']);
     }
 
 

@@ -7,6 +7,7 @@ namespace Thehouseofel\Dbsync\Domain\Support;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Schema\Builder;
 use Thehouseofel\Dbsync\Domain\Contracts\SchemaDriver;
+use Thehouseofel\Dbsync\Domain\Support\Drivers\DB2Driver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\MariaDbDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\MySqlDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\OracleDriver;
@@ -23,6 +24,9 @@ class SchemaConnection
         'sqlite'  => SQLiteDriver::class,
         'mysql'   => MySqlDriver::class,
         'mariadb' => MariaDbDriver::class,
+        'db2'     => DB2Driver::class,
+        'ibmi'    => DB2Driver::class,
+        'ibm'     => DB2Driver::class,
         'pgsql'   => PostgresDriver::class,
         'sqlsrv'  => SqlServerDriver::class,
         'oracle'  => OracleDriver::class,

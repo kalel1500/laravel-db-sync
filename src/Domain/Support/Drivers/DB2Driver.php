@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Thehouseofel\Dbsync\Domain\Support\Drivers;
 
 use Composer\InstalledVersions;
+use Throwable;
 
 class DB2Driver extends BaseDriver
 {

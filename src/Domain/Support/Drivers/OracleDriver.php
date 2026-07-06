@@ -48,12 +48,20 @@ class OracleDriver extends BaseDriver
 
         $this->connection->table($table)->truncate();
 
-        $this->connection->statement("ALTER TABLE {$this->wrapTable($table)} MODIFY ($upperColumn GENERATED AS IDENTITY (START WITH 1))");
+        $schema           = $this->connection->getSchemaBuilder();
+        $columns          = $schema->getColumns($table);
+        $hasAutoIncrement = collect($columns)->contains(function ($column) {
+            return isset($column['auto_increment']) && $column['auto_increment'] === true;
+        });
+
+        if ($hasAutoIncrement) {
+            $this->connection->statement("ALTER TABLE {$this->wrapTable($table)} MODIFY ($upperColumn GENERATED AS IDENTITY (START WITH 1))");
+        }
     }
 
     public function syncIdentity(string $table, string $column = 'id'): void
     {
-        $wrappedTable = $this->wrapTable($table);
+        $wrappedTable  = $this->wrapTable($table);
         $wrappedColumn = $this->wrapColumn($column);
 
         $this->connection->statement(

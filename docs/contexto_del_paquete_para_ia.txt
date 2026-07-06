@@ -19,3 +19,17 @@ Pues ahora necesito soportar tambien BD2 y he visto que tambien hay un paquete d
 https://github.com/BWICompanies/db2-driver/blob/master/src/Schema/DB2Blueprint.php
 
 ¿Me ayudas a crear el driver para DB2 siguiendo el patrón que ya tengo para los otros motores?
+
+
+-----
+
+Lo que hago en casi todos los drivers en el force drop es deshabilitar las fks con "disableForeignKeyConstraints" y usar "dropIfExists" que lo trae el builder de Laravel. Los dos paquetes que uso tanto el "yajra/laravel-oci8" como el "db2-driver" usan las interfaces de Laravel por lo que no me preocupa que no hayan implementado métodos. Mis drivers no son por si ellos no han implementado algo son mas por limitaciones del lenguaje.
+
+Por ejemplo, en oracle no se puede hacer drop si hay otras tablas con fks por eso hago un "DROP TABLE {$this->wrapTable($table)} CASCADE CONSTRAINTS PURGE" en el "forceDrop" para que se eliminen las fks.
+O por ejemplo en oracle ejecuto el "ALTER TABLE {$this->wrapTable($table)} MODIFY ($upperColumn GENERATED AS IDENTITY (START WITH 1))" tras el truncate ya que no es como en mysql que se regenerate el autoincrement solo.
+
+Si crees que en DB2 no basta con:
+    $schema->disableForeignKeyConstraints();
+    $schema->dropIfExists($table);
+    $schema->enableForeignKeyConstraints();
+(que es lo que hace el BaseDriver) para hacer el drop sí que deberíamos definir el forceDrop en el driver de DB2.

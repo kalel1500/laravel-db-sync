@@ -48,11 +48,9 @@ class OracleDriver extends BaseDriver
 
         $this->connection->table($table)->truncate();
 
-        $schema           = $this->connection->getSchemaBuilder();
-        $columns          = $schema->getColumns($table);
-        $hasAutoIncrement = collect($columns)->contains(function ($column) {
-            return isset($column['auto_increment']) && $column['auto_increment'] === true;
-        });
+        $tableNameUpper   = strtoupper($table);
+        $identityCount    = $this->connection->select("SELECT COUNT(*) as c FROM user_tab_cols WHERE table_name = '$tableNameUpper' AND identity_column = 'YES'");
+        $hasAutoIncrement = $identityCount[0]->c > 0;
 
         if ($hasAutoIncrement) {
             $this->connection->statement("ALTER TABLE {$this->wrapTable($table)} MODIFY ($upperColumn GENERATED AS IDENTITY (START WITH 1))");

@@ -1,6 +1,19 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.8.0-beta.1...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.0-beta.2...master)
+
+## [v0.9.0-beta.2](https://github.com/kalel1500/laravel-db-sync/compare/v0.8.0-beta.1...v0.9.0-beta.2) - 2026-07-08
+
+### Changed
+
+* (breaking) The minimum version of the `kalel1500/kalion` package has been upgraded to `v0.55.0-beta.0` (some namespaces have been updated that were changed in that version).
+* When passing an `id` (table or connection) to the `php artisan dbsync:run` command, it no longer checks whether that table or connection is active.
+  * This way, you can force synchronizations of tables or connections that are disabled in the configuration.
+
+### Fixed
+
+* Fixed an error in the `truncate` method of the `OracleDriver` when the table does not have an identity column, as it was attempting to reset the identity counter even though it didn't exist.
+* Fixed an error in the `truncate` method of the `SchemaConnection` when it receives an associative array, as it was always assigning the `id` as a column.
 
 ## [v0.8.0-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.7.0-beta.2...v0.8.0-beta.1) - 2026-05-22
 

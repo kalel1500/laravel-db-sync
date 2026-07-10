@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Thehouseofel\Dbsync\Domain\Support\Drivers;
 
 use Composer\InstalledVersions;
-use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncTable;
 
 class OracleDriver extends BaseDriver
 {
@@ -44,7 +43,8 @@ class OracleDriver extends BaseDriver
 
     public function truncate(string $table, string $column = 'id'): void
     {
-        $upperColumn = strtoupper($column);
+        $wrappedTable  = $this->wrapTable($table);
+        $wrappedColumn = $this->wrapColumn($column);
 
         $this->connection->table($table)->truncate();
 
@@ -53,7 +53,7 @@ class OracleDriver extends BaseDriver
         $hasAutoIncrement = $identityCount[0]->c > 0;
 
         if ($hasAutoIncrement) {
-            $this->connection->statement("ALTER TABLE {$this->wrapTable($table)} MODIFY ($upperColumn GENERATED AS IDENTITY (START WITH 1))");
+            $this->connection->statement("ALTER TABLE $wrappedTable MODIFY ($wrappedColumn GENERATED AS IDENTITY (START WITH 1))");
         }
     }
 

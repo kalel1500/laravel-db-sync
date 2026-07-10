@@ -1,6 +1,16 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.0-beta.2...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.1-beta.0...master)
+
+## [v0.9.1-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.0-beta.2...v0.9.1-beta.0) - 2026-07-10
+
+### Changed
+
+* In `OracleDriver::truncate`, Oracle identity reset now builds the appropriate `ALTER TABLE ... MODIFY` clause from the table's current identity definition, so auto-increment restoration preserves the existing schema behavior.
+
+### Fixed
+
+* Added an identity-existence check in `syncIdentity` so Oracle identity reset is skipped safely when the target column is not an auto-increment/identity column.
 
 ## [v0.9.0-beta.2](https://github.com/kalel1500/laravel-db-sync/compare/v0.8.0-beta.1...v0.9.0-beta.2) - 2026-07-08
 

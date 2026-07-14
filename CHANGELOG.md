@@ -1,6 +1,14 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.1-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.1-beta.1...master)
+
+## [v0.9.1-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.1-beta.0...v0.9.1-beta.1) - 2026-07-14
+
+### Fixed
+
+* Fixed Oracle driver `ORA-00923` error in `identityGenerationType` method when querying identity column metadata.
+  * Removed problematic table alias in the `user_tab_identity_cols` query that was causing parsing issues with the Oracle parser.
+  * Enhanced result handling to support case-insensitive column name retrieval from the OCI driver (fixes inconsistent property casing returned by different Oracle PHP driver versions).
 
 ## [v0.9.1-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.0-beta.2...v0.9.1-beta.0) - 2026-07-10
 

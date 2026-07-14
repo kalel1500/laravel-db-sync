@@ -74,11 +74,22 @@ class OracleDriver extends BaseDriver
     protected function identityGenerationType(string $table, string $column): ?string
     {
         $row = $this->connection->selectOne(
-            'SELECT generation_type as mode FROM user_tab_identity_cols WHERE table_name = ? AND column_name = ?',
+            'SELECT generation_type generation_mode FROM user_tab_identity_cols WHERE table_name = ? AND column_name = ?',
             [strtoupper($table), strtoupper($column)]
         );
 
-        return isset($row->mode) ? strtoupper((string) $row->mode) : null;
+        if ($row === null) {
+            return null;
+        }
+
+        $data = (array) $row;
+        $value = $data['generation_mode']
+            ?? $data['GENERATION_MODE']
+            ?? $data['generation_type']
+            ?? $data['GENERATION_TYPE']
+            ?? null;
+
+        return $value !== null ? strtoupper((string) $value) : null;
     }
 
     protected function buildIdentityClause(string $generationType, string $startWith): string

@@ -170,7 +170,7 @@ class TableDataCopier
             }
         }
 
-        // --- CHUNK OFFSET sin type (Casos menos seguros) ---
+        // --- CHUNK OFFSET sin column (Casos menos seguros) ---
 
         if ($strategy->isChunkOffset()) {
 

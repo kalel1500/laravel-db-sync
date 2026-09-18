@@ -200,10 +200,10 @@ Data extraction is driven by a **strategy** system, which determines how rows ar
 
 The strategy is defined in the `dbsync_tables.copy_strategy` column as a JSON object:
 
-| Key      | Type   | Description                                                                    |
-|----------|--------|--------------------------------------------------------------------------------|
-| `type`   | string | Execution strategy: `chunkById`, `chunk`, or `cursor`.                         |
-| `column` | string | Column used for _ordering/chunking_ (only required for chunk-based strategies) |
+| Key      | Type    | Description                                                                    |
+|----------|---------|--------------------------------------------------------------------------------|
+| `type`   | ?string | Execution strategy: `chunkById`, `chunk`, or `cursor`.                         |
+| `column` | ?string | Column used for _ordering/chunking_ (only required for chunk-based strategies) |
 
 ### Available Strategies
 
@@ -262,6 +262,18 @@ If both `type` and `column` are provided, the package uses them directly:
 #### 3. Automatic Resolution
 
 If the configuration is partial or not defined, the package applies automatic resolution.
+
+```json
+null
+```
+
+```json
+{ "type": "chunkById|chunk"}
+```
+
+```json
+{ "column": "code"}
+```
 
 > ##### 3.1 No configuration (`null`)
 > 
@@ -355,12 +367,13 @@ Currently supported:
 
 ### Example
 
-| method | parameters       | source  | source_config    |
-|--------|------------------|---------|------------------|
-| id     | null             | table   | null             |
-| string | ["name"]         | table   | null             |
-| uuid   | ["virtual_id"]   | virtual | null             |
-| uuid   | ["virtual_uuid"] | virtual | {"type": "uuid"} |
+| method | parameters         | source  | source_config        |
+|--------|--------------------|---------|----------------------|
+| id     | null               | table   | null                 |
+| string | `["name"]`         | table   | null                 |
+| id     | `["virtual_id"]`   | virtual | null                 |
+| uuid   | `["virtual_uuid"]` | virtual | `{"type": "uuid"}`   |
+| ulid   | `["virtual_ulid"]` | virtual | `{ "type": "ulid" }` |
 
 
 ### Behavior
@@ -481,11 +494,11 @@ Defines **what to sync and how**.
 | source_query                    | Optional custom SELECT                                                                         | (string) | _select..._                                  |
 | use_temporal_table              | Enables temporal strategy                                                                      | (bool)   | _true_                                       |
 | batch_size                      | Insert chunk size                                                                              | (int)    | _500_                                        |
-| copy_strategy                   | Optional JSON to force a specific copy strategy.                                               | (int)    | `{"type": "chunkById", "column": "id_user"}` |
+| copy_strategy                   | Optional JSON to force a specific copy strategy.                                               | (json)   | `{"type": "chunkById", "column": "id_user"}` |
 | has_large_text_values_in_oracle | Forces row-by-row insertion instead of bulk (use only if needed, mainly for Oracle edge cases) | (bool)   | _false_                                      |
-| primary_key                     | * Primary key definition                                                                       | (array)  | `["user_id", "rol_id"]`                      |
-| unique_keys                     | * Unique constraints                                                                           | (array)  | `[["name", "type"]]`                         |
-| indexes                         | * Index definitions                                                                            | (array)  | `[["name", "description"]]`                  |
+| primary_key                     | * Primary key definition                                                                       | (json)   | `["user_id", "rol_id"]`                      |
+| unique_keys                     | * Unique constraints                                                                           | (json)   | `[["name", "type"]]`                         |
+| indexes                         | * Index definitions                                                                            | (json)   | `[["name", "description"]]`                  |
 | connection_id                   | Reference to the connection used by this table                                                 | (int)    | _1_                                          |
 
 

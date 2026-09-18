@@ -119,6 +119,10 @@ class TableDataCopier
 
     protected function transformRow(array $data, RowProcessingContext $context): array
     {
+        $nullIfEmpty = function (string $value) {
+            return trim($value) === '' ? null : $value;
+        };
+
         // Generadores virtuales
         foreach ($context->virtualGenerators as $column => $type) {
             if (! array_key_exists($column, $data)) {
@@ -135,7 +139,7 @@ class TableDataCopier
                 $data[$column] = match ($transform) {
                     'upper'         => mb_strtoupper($data[$column]),
                     'lower'         => mb_strtolower($data[$column]),
-                    'null_if_empty' => null_if_empty($data[$column]),
+                    'null_if_empty' => $nullIfEmpty($data[$column]),
                     default => $data[$column],
                 };
             }

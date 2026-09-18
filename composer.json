@@ -25,10 +25,7 @@
             "Thehouseofel\\Dbsync\\": "src",
             "Thehouseofel\\Dbsync\\Database\\Factories\\": "database/factories",
             "Thehouseofel\\Dbsync\\Database\\Seeders\\": "database/seeders"
-        },
-        "files": [
-            "src/helpers.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {

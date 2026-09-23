@@ -7,6 +7,7 @@ namespace Thehouseofel\Dbsync\Domain\Support;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Schema\Builder;
 use Thehouseofel\Dbsync\Domain\Contracts\SchemaDriver;
+use Thehouseofel\Dbsync\Domain\Support\Drivers\Db2Driver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\MariaDbDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\MySqlDriver;
 use Thehouseofel\Dbsync\Domain\Support\Drivers\OracleDriver;
@@ -27,6 +28,7 @@ class SchemaConnection
         'sqlsrv'  => SqlServerDriver::class,
         'oracle'  => OracleDriver::class,
         'oci8'    => OracleDriver::class,
+        'db2'     => Db2Driver::class,
     ];
 
     public function __construct(

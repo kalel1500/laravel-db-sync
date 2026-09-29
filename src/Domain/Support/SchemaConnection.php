@@ -43,8 +43,8 @@ class SchemaConnection
         }
 
         $name   = $this->connection->getDriverName();
-        $engine = DriverRegistry::engineFor($name) ?? throw new \RuntimeException("Driver $name no soportado.");
-        $class  = $this->driversMap[$engine] ?? throw new \RuntimeException("Motor $engine no soportado.");
+        $engine = DriverRegistry::engineFor($name) ?? throw new \RuntimeException("$name driver not supported");
+        $class  = $this->driversMap[$engine] ?? throw new \RuntimeException("$engine engine not supported");
 
         return $this->driverInstance = new $class($this->connection);
     }

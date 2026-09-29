@@ -1,6 +1,26 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.1-beta.2...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.10.0-beta.0...master)
+
+## [v0.10.0-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.1-beta.2...v0.10.0-beta.0) - 2026-09-29
+
+### ⚠️ Breaking Changes
+
+* The helper `null_if_empty` has been removed.
+
+### Added
+
+* Added DB2 driver support for table drops, truncation with identity reset, and identity synchronization.
+  * The optional `easi-power/laravel-db2` package in version `^13.0` is required when using this driver.
+
+### Changed
+
+* Database driver aliases are now centralized in the `dbsync.drivers` configuration.
+  * Multiple connection driver names can be mapped to the same database engine using comma-separated values, avoiding duplicated alias definitions across the schema components.
+
+### Removed
+
+* (breaking) Removed the helper `null_if_empty` as it was not being used anywhere in the package.
 
 ## [v0.9.1-beta.2](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.1-beta.1...v0.9.1-beta.2) - 2026-07-14
 

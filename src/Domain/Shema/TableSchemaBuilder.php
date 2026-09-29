@@ -8,6 +8,7 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Builder;
 use Illuminate\Support\Str;
+use Thehouseofel\Dbsync\Domain\Support\DriverRegistry;
 use Thehouseofel\Dbsync\Domain\Traits\HasShortNames;
 use Thehouseofel\Dbsync\Infrastructure\Facades\DbsyncSchema;
 use Thehouseofel\Dbsync\Infrastructure\Models\DbsyncColumn;
@@ -189,10 +190,10 @@ class TableSchemaBuilder
 
     public function driverDestroysForeignKeys(Connection $connection): bool
     {
-        $driver = $connection->getDriverName();
+        $engine = DriverRegistry::engineFor($connection->getDriverName());
 
         // DB2, Oracle, Postgres y SQL Server eliminan o requieren eliminar las constraints físicamente
-        return in_array($driver, ['db2', 'oracle', 'oci8', 'pgsql', 'sqlsrv']);
+        return in_array($engine, ['db2', 'oracle', 'pgsql', 'sqlsrv'], true);
     }
 
 

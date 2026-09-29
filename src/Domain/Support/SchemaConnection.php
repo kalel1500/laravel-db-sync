@@ -27,7 +27,6 @@ class SchemaConnection
         'pgsql'   => PostgresDriver::class,
         'sqlsrv'  => SqlServerDriver::class,
         'oracle'  => OracleDriver::class,
-        'oci8'    => OracleDriver::class,
         'db2'     => Db2Driver::class,
     ];
 
@@ -43,8 +42,9 @@ class SchemaConnection
             return $this->driverInstance;
         }
 
-        $name  = $this->connection->getDriverName();
-        $class = $this->driversMap[$name] ?? throw new \RuntimeException("Driver $name no soportado.");
+        $name   = $this->connection->getDriverName();
+        $engine = DriverRegistry::engineFor($name) ?? throw new \RuntimeException("Driver $name no soportado.");
+        $class  = $this->driversMap[$engine] ?? throw new \RuntimeException("Motor $engine no soportado.");
 
         return $this->driverInstance = new $class($this->connection);
     }

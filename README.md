@@ -616,14 +616,14 @@ The `truncate` method disables foreign key constraints before the process and re
 
 The package is currently in **Beta**. While the logic is implemented for all major drivers, the level of testing varies:
 
-| Driver              | Status    | Notes                                                 |
-|:--------------------|:----------|:------------------------------------------------------|
-| **MySQL / MariaDB** | ✅ Tested | Fully functional.                                     |
-| **SQLite**          | ✅ Tested | Fully functional.                                     |
-| **Oracle (12c+)**   | ✅ Tested | Verified using Identity Columns (standard since 12c). |
-| **DB2**             | ⚠️ Beta   | Logic implemented but pending full integration tests. |
-| **PostgreSQL**      | ⚠️ Beta   | Logic implemented but pending full integration tests. |
-| **SQL Server**      | ⚠️ Beta   | Logic implemented but pending full integration tests. |
+| Driver              | Status    | Notes                                                                                |
+|:--------------------|:----------|:-------------------------------------------------------------------------------------|
+| **MySQL / MariaDB** | ✅ Tested | Fully functional.                                                                    |
+| **SQLite**          | ✅ Tested | Fully functional.                                                                    |
+| **Oracle (12c+)**   | ✅ Tested | Verified using Identity Columns (standard since 12c). Requires `yajra/laravel-oci8`. |
+| **DB2**             | ✅ Tested | Verified solely as the source. Requires `easi-power/laravel-db2`.                    |
+| **PostgreSQL**      | ⚠️ Beta   | Logic implemented but pending full integration tests.                                |
+| **SQL Server**      | ⚠️ Beta   | Logic implemented but pending full integration tests.                                |
 
 > **Beta Disclaimer:** While the core logic is implemented for all drivers, please proceed with caution when using this package in production environments with `DB2`, `Postgres` or `SQL Server`, as they are still undergoing full verification.
 > We highly encourage testing in these environments! If you encounter any issues or wish to contribute, please open an issue or submit a PR.

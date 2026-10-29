@@ -13,10 +13,10 @@ class DbsyncTable extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'chunk_config' => 'array',
-        'primary_key'  => 'array',
-        'unique_keys'  => 'array',
-        'indexes'      => 'array',
+        'copy_strategy' => 'array',
+        'primary_key'   => 'array',
+        'unique_keys'   => 'array',
+        'indexes'       => 'array',
     ];
 
     public function connection()

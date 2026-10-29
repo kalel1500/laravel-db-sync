@@ -1,6 +1,12 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.10.0-beta.0...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.10.0-beta.1...master)
+
+## [v0.10.0-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.10.0-beta.0...v0.10.0-beta.1) - 2026-10-29
+
+### Fixed
+
+* Fix `copy_strategy` attribute casting in `DbsyncTable` model to ensure strategy configuration are loaded correctly.
 
 ## [v0.10.0-beta.0](https://github.com/kalel1500/laravel-db-sync/compare/v0.9.1-beta.2...v0.10.0-beta.0) - 2026-09-29
 

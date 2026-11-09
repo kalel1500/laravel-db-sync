@@ -66,7 +66,7 @@ class OracleDriver extends BaseDriver
             $identityClause = $this->buildIdentityClause($generationType, 'START WITH LIMIT VALUE');
 
             $this->connection->statement(
-                "ALTER TABLE $wrappedTable MODIFY ($wrappedColumn $identityClause);"
+                "ALTER TABLE $wrappedTable MODIFY ($wrappedColumn $identityClause)"
             );
         }
     }

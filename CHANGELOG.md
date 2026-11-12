@@ -1,6 +1,12 @@
 # Release Notes
 
-## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.10.0-beta.1...master)
+## [Unreleased](https://github.com/kalel1500/laravel-db-sync/compare/v0.10.0-beta.2...master)
+
+## [v0.10.0-beta.2](https://github.com/kalel1500/laravel-db-sync/compare/v0.10.0-beta.1...v0.10.0-beta.2) - 2026-11-12
+
+### Fixed
+
+* Fix syntax error in `syncIdentity` query.
 
 ## [v0.10.0-beta.1](https://github.com/kalel1500/laravel-db-sync/compare/v0.10.0-beta.0...v0.10.0-beta.1) - 2026-10-29
 
